@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>io.phoenixfire.it</groupId>
+    <artifactId>argline</artifactId>
+    <version>1.0.0</version>
+    <packaging>jar</packaging>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <maven.compiler.release>17</maven.compiler.release>
+        <!-- A build-time property, the way jacoco:prepare-agent publishes its argLine. The plugin must
+             expand @{extra.args} against this just before launching the fork. -->
+        <extra.args>-Dphoenixfire.extra=present</extra.args>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>5.10.2</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.2.5</version>
+                <configuration>
+                    <skip>true</skip>
+                </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>io.phoenixfire</groupId>
+                <artifactId>phoenixfire-maven-plugin</artifactId>
+                <version>@project.version@</version>
+                <executions>
+                    <execution>
+                        <id>phoenixfire-test</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <forkCount>1</forkCount>
+                    <!-- Quote-aware: the value with a space must arrive as a single system property.
+                         Late expansion: @{extra.args} resolves to the build-time property above. -->
+                    <argLine>-Dphoenixfire.demo="hello world" @{extra.args}</argLine>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>

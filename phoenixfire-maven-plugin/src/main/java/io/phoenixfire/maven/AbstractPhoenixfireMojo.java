@@ -4,6 +4,8 @@ import io.phoenixfire.api.model.IsolationLevel;
 import io.phoenixfire.core.config.PhoenixfireConfiguration;
 import io.phoenixfire.core.engine.ExecutionEngine;
 import io.phoenixfire.core.engine.ExecutionSummary;
+import io.phoenixfire.core.select.TestSelector;
+import io.phoenixfire.core.util.ArgLine;
 import org.apache.maven.artifact.Artifact;
 import org.apache.maven.artifact.DependencyResolutionRequiredException;
 import org.apache.maven.plugin.AbstractMojo;
@@ -13,20 +15,27 @@ import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.project.MavenProject;
 
 import java.io.File;
+import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Common configuration and execution flow for all Phoenixfire goals. Subclasses provide the lifecycle
  * binding, the default include patterns, the reports directory, and how to react to the result.
  */
 public abstract class AbstractPhoenixfireMojo extends AbstractMojo {
+
+    /** Surefire-style late-expansion placeholder, e.g. {@code @{argLine}}. */
+    private static final Pattern LATE_PROPERTY = Pattern.compile("@\\{(.+?)\\}");
 
     @Parameter(defaultValue = "${project}", readonly = true, required = true)
     protected MavenProject project;
@@ -41,6 +50,18 @@ public abstract class AbstractPhoenixfireMojo extends AbstractMojo {
     /** Exclude patterns (Surefire-style globs). */
     @Parameter
     protected List<String> excludes = new ArrayList<>();
+
+    /**
+     * A file listing additional include patterns, one per line ({@code #} starts a comment).
+     * Surefire {@code includesFile} parity - lets large selections live in a file instead of the POM
+     * or the command line.
+     */
+    @Parameter(property = "phoenixfire.includesFile")
+    protected File includesFile;
+
+    /** A file listing additional exclude patterns, one per line ({@code #} comments allowed). */
+    @Parameter(property = "phoenixfire.excludesFile")
+    protected File excludesFile;
 
     /** Extra JVM arguments for each fork (Surefire {@code argLine} parity). */
     @Parameter(property = "argLine")
@@ -57,6 +78,18 @@ public abstract class AbstractPhoenixfireMojo extends AbstractMojo {
     /** Number of concurrent forks for the shared pool. */
     @Parameter(property = "phoenixfire.forkCount", defaultValue = "1")
     protected int forkCount;
+
+    /**
+     * 1-based shard index for this run (Jest {@code --shard} style). Only takes effect when
+     * {@link #shardCount} &gt; 1. Sharding is by test class, balanced by class count, and deterministic
+     * so every node computes the same partition without coordination.
+     */
+    @Parameter(property = "phoenixfire.shard.index", defaultValue = "0")
+    protected int shardIndex;
+
+    /** Total number of shards to split the suite across; {@code <= 1} disables sharding. */
+    @Parameter(property = "phoenixfire.shard.count", defaultValue = "0")
+    protected int shardCount;
 
     /** Maximum total attempts per test before it is forced to a terminal state. */
     @Parameter(property = "phoenixfire.maxAttempts", defaultValue = "3")
@@ -144,6 +177,12 @@ public abstract class AbstractPhoenixfireMojo extends AbstractMojo {
 
     protected abstract List<String> defaultIncludes();
 
+    /**
+     * The goal-specific selection expression: {@code -Dtest} for unit tests, {@code -Dit.test} for
+     * integration tests. Returns {@code null}/blank when not set.
+     */
+    protected abstract String testFilterExpression();
+
     protected abstract File reportsDirectory();
 
     protected abstract void handleResult(ExecutionSummary summary) throws MojoFailureException;
@@ -178,8 +217,24 @@ public abstract class AbstractPhoenixfireMojo extends AbstractMojo {
         List<String> classpath = buildForkClasspath();
         List<String> scanRoots = buildScanRoots();
 
-        List<String> effectiveIncludes = includes.isEmpty() ? defaultIncludes() : includes;
-        List<String> jvmArgs = splitArgLine(argLine);
+        List<String> mergedIncludes = new ArrayList<>(includes);
+        mergedIncludes.addAll(readPatternFile(includesFile));
+
+        // -Dtest / -Dit.test: its class patterns override includes (Surefire parity) so that a named
+        // class outside the default globs is still discovered; method-level precision is applied later.
+        String testFilter = testFilterExpression();
+        List<String> selectorGlobs = TestSelector.parse(testFilter).discoveryIncludeGlobs();
+        List<String> effectiveIncludes;
+        if (!selectorGlobs.isEmpty()) {
+            effectiveIncludes = selectorGlobs;
+        } else {
+            effectiveIncludes = mergedIncludes.isEmpty() ? defaultIncludes() : mergedIncludes;
+        }
+
+        List<String> mergedExcludes = new ArrayList<>(excludes);
+        mergedExcludes.addAll(readPatternFile(excludesFile));
+
+        List<String> jvmArgs = ArgLine.tokenize(expandLateProperties(argLine));
 
         File reports = reportsDirectory();
         File journalFile = new File(reports, "journal.ndjson");
@@ -188,7 +243,7 @@ public abstract class AbstractPhoenixfireMojo extends AbstractMojo {
                 .classpath(classpath)
                 .scanRoots(scanRoots)
                 .includes(effectiveIncludes)
-                .excludes(excludes)
+                .excludes(mergedExcludes)
                 .baseJvmArgs(jvmArgs)
                 .systemProperties(systemPropertyVariables == null ? Map.of() : systemPropertyVariables)
                 .environment(environmentVariables == null ? Map.of() : environmentVariables)
@@ -205,6 +260,9 @@ public abstract class AbstractPhoenixfireMojo extends AbstractMojo {
                 .testFailureIgnore(testFailureIgnore)
                 .workingDirectory(project.getBasedir() != null ? project.getBasedir().getAbsolutePath() : null)
                 .runMetadata(buildRunMetadata())
+                .testFilter(testFilter)
+                .shardIndex(shardIndex)
+                .shardCount(shardCount)
                 .build();
     }
 
@@ -245,6 +303,29 @@ public abstract class AbstractPhoenixfireMojo extends AbstractMojo {
         return classpath;
     }
 
+    /** Reads include/exclude patterns from a file: one per line, blank lines and {@code #} comments ignored. */
+    private List<String> readPatternFile(File file) throws MojoExecutionException {
+        if (file == null) {
+            return List.of();
+        }
+        if (!file.isFile()) {
+            getLog().warn("Phoenixfire pattern file not found, ignoring: " + file);
+            return List.of();
+        }
+        List<String> patterns = new ArrayList<>();
+        try {
+            for (String line : Files.readAllLines(file.toPath(), StandardCharsets.UTF_8)) {
+                String trimmed = line.trim();
+                if (!trimmed.isEmpty() && !trimmed.startsWith("#")) {
+                    patterns.add(trimmed);
+                }
+            }
+        } catch (IOException e) {
+            throw new MojoExecutionException("Could not read pattern file " + file + ": " + e.getMessage(), e);
+        }
+        return patterns;
+    }
+
     private List<String> buildScanRoots() {
         List<String> roots = new ArrayList<>();
         if (project.getBuild() != null) {
@@ -273,11 +354,29 @@ public abstract class AbstractPhoenixfireMojo extends AbstractMojo {
         return levels;
     }
 
-    private static List<String> splitArgLine(String argLine) {
-        if (argLine == null || argLine.isBlank()) {
-            return List.of();
+    /**
+     * Surefire {@code @{property}} late expansion: resolve {@code @{name}} against build-time
+     * properties (project properties first - this is where {@code jacoco:prepare-agent} publishes its
+     * {@code argLine} - then JVM system properties) just before the fork is launched. Unresolved
+     * placeholders are left untouched so a typo is visible rather than silently dropped.
+     */
+    private String expandLateProperties(String value) {
+        if (value == null || !value.contains("@{")) {
+            return value;
         }
-        return Arrays.asList(argLine.trim().split("\\s+"));
+        Matcher m = LATE_PROPERTY.matcher(value);
+        StringBuilder out = new StringBuilder();
+        while (m.find()) {
+            String resolved = lookupProperty(m.group(1));
+            m.appendReplacement(out, Matcher.quoteReplacement(resolved != null ? resolved : m.group(0)));
+        }
+        m.appendTail(out);
+        return out.toString();
+    }
+
+    private String lookupProperty(String name) {
+        String value = project.getProperties().getProperty(name);
+        return value != null ? value : System.getProperty(name);
     }
 
     private URLClassLoader createSpiClassLoader(List<String> classpath) throws MojoExecutionException {

@@ -6,6 +6,8 @@ import io.phoenixfire.core.config.PhoenixfireConfiguration;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -16,6 +18,11 @@ import java.util.Map;
  * Builds the JVM command line for a fork and launches it via {@link ProcessBuilder}, wiring in the
  * IPC port, one-time token, fork id, scan roots and classpath. The fork's stdout/stderr are merged
  * into a per-fork log file so the controller can read a diagnostic tail after a crash.
+ *
+ * <p>The classpath - the only realistically unbounded argument, since a large project may put
+ * thousands of jars on it - is written to a JVM {@code @argfile} rather than the command line, so the
+ * launch never hits the operating system's command-line length limit. The set of tests to run is
+ * never placed on the command line at all; it is sent to the fork over the IPC socket.
  */
 public final class ForkLauncher {
 
@@ -46,8 +53,9 @@ public final class ForkLauncher {
         command.add("-D" + IpcProtocol.PROP_SCAN_ROOTS + "=" + String.join(File.pathSeparator, config.scanRoots()));
         command.add("-Dphoenixfire.heartbeat.interval=" + config.heartbeatIntervalMillis());
 
-        command.add("-cp");
-        command.add(String.join(File.pathSeparator, config.classpath()));
+        // Classpath goes in an @argfile (not on argv) to stay under the OS command-line length limit.
+        Path argFile = writeClasspathArgFile(forkId, logFile);
+        command.add("@" + argFile);
         command.add("io.phoenixfire.runner.ForkRunnerMain");
 
         ProcessBuilder pb = new ProcessBuilder(command);
@@ -61,6 +69,35 @@ public final class ForkLauncher {
             pb.redirectOutput(ProcessBuilder.Redirect.to(logFile.toFile()));
         }
         return pb.start();
+    }
+
+    /**
+     * Writes the classpath into a JVM argument file ({@code java @file}). Entries are written with
+     * forward slashes because the launcher treats backslashes as escape characters inside argfiles;
+     * forward slashes are accepted in classpath entries on every platform including Windows. The
+     * whole classpath is quoted so entries containing spaces survive tokenisation.
+     */
+    private Path writeClasspathArgFile(String forkId, Path logFile) throws IOException {
+        StringBuilder cp = new StringBuilder();
+        List<String> entries = config.classpath();
+        for (int i = 0; i < entries.size(); i++) {
+            if (i > 0) {
+                cp.append(File.pathSeparatorChar);
+            }
+            cp.append(entries.get(i).replace('\\', '/'));
+        }
+        String content = "-classpath" + System.lineSeparator() + "\"" + cp + "\"" + System.lineSeparator();
+
+        Path file;
+        if (logFile != null) {
+            Files.createDirectories(logFile.toAbsolutePath().getParent());
+            file = logFile.resolveSibling(forkId + ".args");
+        } else {
+            file = Files.createTempFile("phoenixfire-fork-" + forkId + "-", ".args");
+            file.toFile().deleteOnExit();
+        }
+        Files.write(file, content.getBytes(StandardCharsets.UTF_8));
+        return file;
     }
 
     private String javaExecutable() {

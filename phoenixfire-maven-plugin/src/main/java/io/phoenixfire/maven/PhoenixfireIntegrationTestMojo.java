@@ -32,6 +32,13 @@ public class PhoenixfireIntegrationTestMojo extends AbstractPhoenixfireMojo {
     @Parameter(property = "skipITs", defaultValue = "false")
     private boolean skipITs;
 
+    /**
+     * Failsafe {@code -Dit.test} parity: select integration tests by class and/or method, e.g.
+     * {@code -Dit.test=FooIT}, {@code -Dit.test=FooIT#scenario*}, {@code -Dit.test=*IT,!FlakyIT}.
+     */
+    @Parameter(property = "it.test")
+    private String itTest;
+
     @Override
     protected boolean isSkipped() {
         return skip || skipTests || skipITs;
@@ -40,6 +47,11 @@ public class PhoenixfireIntegrationTestMojo extends AbstractPhoenixfireMojo {
     @Override
     protected List<String> defaultIncludes() {
         return List.of("**/IT*.java", "**/*IT.java", "**/*ITCase.java");
+    }
+
+    @Override
+    protected String testFilterExpression() {
+        return itTest;
     }
 
     @Override

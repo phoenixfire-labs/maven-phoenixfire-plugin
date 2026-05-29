@@ -1,0 +1,3 @@
+# Phoenixfire exclude patterns (Surefire excludesFile parity).
+# Blank lines and lines starting with '#' are ignored.
+**/ExcludedTest.java

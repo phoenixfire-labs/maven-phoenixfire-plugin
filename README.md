@@ -100,8 +100,57 @@ Disable the built-in Surefire/Failsafe executions and bind Phoenixfire to `test`
 
 ## Configuration (selected)
 
-Surefire-parity: `includes`, `excludes`, `forkCount`, `argLine`, `systemPropertyVariables`,
-`environmentVariables`, `skipTests`/`maven.test.skip`, `testFailureIgnore`, `rerunFailingTestsCount`.
+Surefire-parity: `includes`, `excludes`, `includesFile`, `excludesFile`, `forkCount`, `argLine`,
+`systemPropertyVariables`, `environmentVariables`, `skipTests`/`maven.test.skip`, `testFailureIgnore`,
+`rerunFailingTestsCount`. Test selection uses Surefire-style path globs (e.g. `**/*Test.java`);
+`includesFile`/`excludesFile` read one pattern per line (`#` comments allowed), keeping large
+selections out of the POM.
+
+### Selecting tests from the command line (`-Dtest` / `-Dit.test`)
+
+Surefire/Failsafe parity for ad-hoc selection. The unit goal reads `-Dtest`, the integration-test goal
+reads `-Dit.test`, so the two phases stay independently selectable:
+
+```bash
+mvn test -Dtest=FooTest                 # one class (simple or fully-qualified name)
+mvn test -Dtest='FooTest#bar+baz'       # specific methods
+mvn test -Dtest='*ServiceTest,!SlowTest' # wildcards and negation (!)
+mvn verify -Dit.test='CheckoutIT#happy*' # integration tests, by method pattern
+```
+
+Like Surefire, a `-Dtest` value **overrides the includes**, so a class outside the default
+`*Test`/`*IT` globs is still found. Selection is applied as a precise post-discovery filter, so
+method-level (`#method`) selection works regardless of fork/isolation strategy.
+
+### Sharding (split a suite across CI nodes)
+
+Indexable, Jest-style sharding splits the suite into `count` shards; each node runs one:
+
+```bash
+mvn test -Dphoenixfire.shard.index=1 -Dphoenixfire.shard.count=4   # node 1 of 4
+```
+
+Sharding is **by class** (all methods of a class stay together, preserving class fixtures and the
+fork-reuse model) and **deterministic**: classes are sorted by name and assigned round-robin, so every
+node computes the same partition with no coordination and balanced class counts. The shard identity is
+recorded in the run envelope and on every `phoenixfire-facts.jsonl` line, so per-node results merge
+cleanly downstream. `count <= 1` disables sharding. Combine with `-Dtest` to shard a pre-filtered set.
+
+### JVM arguments (`argLine`)
+
+`argLine` is a drop-in for Surefire/Failsafe and is applied to every fork. Because the parameter is
+bound to the `argLine` *property* (`@Parameter(property = "argLine")`), agents that publish that
+property work unchanged - notably `jacoco:prepare-agent`, whose coverage agent is picked up with no
+config change. The value is **quote-aware** (`-Dmsg="a b"` stays one argument) and supports Surefire's
+`@{property}` **late expansion**, resolved just before the fork launches against build-time project
+properties (then JVM system properties) - e.g. `<argLine>@{argLine} -Xmx1g</argLine>`.
+
+### Command-line length safety
+
+Phoenixfire never places the set of tests to run on a fork's command line - the test list is sent to
+each fork over the IPC socket, so a project with thousands of test classes is fine. The classpath
+(the only realistically unbounded argument) is written to a JVM `@argfile` rather than the command
+line, so launches stay under the operating system's command-line length limit on every platform.
 
 Phoenixfire-specific: `maxAttempts`, `heartbeatInterval`, `heartbeatTimeout`, `backoff`,
 `escalationLadder` (list of `IsolationLevel` names), `journalEnabled`, `phoenixfire.reportsDirectory`,
@@ -173,3 +222,10 @@ tool can slice without a join. Notable fields:
 ## Status
 
 MVP. JUnit 5 Platform only; within-run resume only (no cross-run resume yet).
+
+## Trademarks
+
+Phoenixfire is an independent project and is not affiliated with, sponsored by, or endorsed by the
+Apache Software Foundation. Apache, Maven, Apache Maven, Surefire, and Failsafe are trademarks of the
+Apache Software Foundation. These names are used here only to describe interoperability and
+compatibility.

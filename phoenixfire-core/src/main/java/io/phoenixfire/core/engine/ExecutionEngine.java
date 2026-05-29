@@ -26,6 +26,8 @@ import io.phoenixfire.core.report.JUnitXmlReportWriter;
 import io.phoenixfire.core.report.JsonLinesReportWriter;
 import io.phoenixfire.core.report.NativeJsonReportWriter;
 import io.phoenixfire.core.retry.RetryPolicies;
+import io.phoenixfire.core.select.Sharding;
+import io.phoenixfire.core.select.TestSelector;
 import io.phoenixfire.core.supervisor.AttemptOutcome;
 import io.phoenixfire.core.supervisor.DefaultFailureClassifier;
 import io.phoenixfire.core.supervisor.ForkExecutionResult;
@@ -101,16 +103,17 @@ public final class ExecutionEngine implements AutoCloseable {
 
     public ExecutionSummary run() {
         List<TestId> discovered = discoveryService.discover();
-        journal.seed(discovered);
+        List<TestId> selected = applySelectionAndSharding(discovered);
+        journal.seed(selected);
 
-        if (discovered.isEmpty()) {
-            log.info("No tests discovered.");
+        if (selected.isEmpty()) {
+            log.info(discovered.isEmpty() ? "No tests discovered." : "No tests selected to run.");
             ReportModel model = snapshotWithEnvelope();
             writeReports(model);
             return new ExecutionSummary(model);
         }
 
-        int maxIterations = (config.maxAttempts() + config.escalationLadder().size() + 2) * discovered.size() + 100;
+        int maxIterations = (config.maxAttempts() + config.escalationLadder().size() + 2) * selected.size() + 100;
         int iteration = 0;
         while (!journal.allTerminal() && iteration++ < maxIterations) {
             List<TestRecord> notRun = journal.testsInState(TestState.NOT_RUN);
@@ -134,6 +137,31 @@ public final class ExecutionEngine implements AutoCloseable {
         logRetrySummary(model);
         log.info(new ExecutionSummary(model).describe());
         return new ExecutionSummary(model);
+    }
+
+    /**
+     * Narrow the discovered set with the {@code -Dtest}/{@code -Dit.test} selection filter and then
+     * with indexable sharding, in that order. Both are deterministic, order-preserving filters.
+     */
+    private List<TestId> applySelectionAndSharding(List<TestId> discovered) {
+        List<TestId> selected = discovered;
+
+        TestSelector selector = TestSelector.parse(config.testFilter());
+        if (!selector.isEmpty()) {
+            selected = selector.filter(selected);
+            log.info("Test filter \"" + config.testFilter() + "\" selected " + selected.size()
+                    + " of " + discovered.size() + " discovered test(s).");
+        }
+
+        if (config.shardCount() > 1) {
+            Sharding sharding = Sharding.of(config.shardIndex(), config.shardCount());
+            sharding.validate();
+            int before = selected.size();
+            selected = sharding.partition(selected);
+            log.info("Shard " + config.shardIndex() + "/" + config.shardCount()
+                    + " selected " + selected.size() + " of " + before + " test(s).");
+        }
+        return selected;
     }
 
     /** Snapshot the journal and attach this run's identity/context envelope. */
@@ -162,6 +190,8 @@ public final class ExecutionEngine implements AutoCloseable {
                 .maxAttempts(config.maxAttempts())
                 .escalationLadder(ladder)
                 .forkCount(config.forkCount())
+                .shardIndex(config.shardCount() > 1 ? config.shardIndex() : 0)
+                .shardCount(config.shardCount() > 1 ? config.shardCount() : 0)
                 .metadata(config.runMetadata())
                 .build();
     }

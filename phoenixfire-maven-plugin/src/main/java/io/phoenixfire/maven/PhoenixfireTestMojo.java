@@ -23,6 +23,13 @@ public class PhoenixfireTestMojo extends AbstractPhoenixfireMojo {
     @Parameter(defaultValue = "${project.build.directory}/phoenixfire-reports", property = "phoenixfire.reportsDirectory")
     private File reportsDir;
 
+    /**
+     * Surefire {@code -Dtest} parity: select unit tests by class and/or method, e.g.
+     * {@code -Dtest=FooTest}, {@code -Dtest=FooTest#bar+baz}, {@code -Dtest=*Service*,!SlowTest}.
+     */
+    @Parameter(property = "test")
+    private String test;
+
     @Override
     protected boolean isSkipped() {
         return skip || skipTests;
@@ -31,6 +38,11 @@ public class PhoenixfireTestMojo extends AbstractPhoenixfireMojo {
     @Override
     protected List<String> defaultIncludes() {
         return List.of("**/Test*.java", "**/*Test.java", "**/*Tests.java", "**/*TestCase.java");
+    }
+
+    @Override
+    protected String testFilterExpression() {
+        return test;
     }
 
     @Override

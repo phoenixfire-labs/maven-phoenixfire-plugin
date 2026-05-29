@@ -155,6 +155,13 @@ public final class NativeJsonReportWriter implements ReportWriter {
         cfg.put("escalationLadder", new ArrayList<Object>(env.escalationLadder()));
         run.put("config", cfg);
 
+        if (env.shardCount() > 0) {
+            Map<String, Object> shard = new LinkedHashMap<>();
+            shard.put("index", env.shardIndex());
+            shard.put("count", env.shardCount());
+            run.put("shard", shard);
+        }
+
         if (!md.labels().isEmpty()) {
             run.put("labels", new LinkedHashMap<Object, Object>(md.labels()));
         }

@@ -83,6 +83,10 @@ public final class JsonLinesReportWriter implements ReportWriter {
             putIfPresent(line, "version", md.projectVersion());
             line.put("maxAttempts", env.maxAttempts());
             line.put("forkCount", env.forkCount());
+            if (env.shardCount() > 0) {
+                line.put("shardIndex", env.shardIndex());
+                line.put("shardCount", env.shardCount());
+            }
             line.put("escalationLadder", new ArrayList<Object>(env.escalationLadder()));
             if (!md.labels().isEmpty()) {
                 line.put("labels", new LinkedHashMap<Object, Object>(md.labels()));
@@ -150,6 +154,10 @@ public final class JsonLinesReportWriter implements ReportWriter {
             putIfPresent(dims, "gitBranch", env.metadata().gitBranch());
             putIfPresent(dims, "os", env.osName());
             putIfPresent(dims, "jvm", env.jvm());
+            if (env.shardCount() > 0) {
+                dims.put("shardIndex", env.shardIndex());
+                dims.put("shardCount", env.shardCount());
+            }
         }
         return dims;
     }

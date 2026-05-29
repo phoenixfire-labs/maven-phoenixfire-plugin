@@ -39,6 +39,9 @@ public final class PhoenixfireConfiguration {
     private final boolean testFailureIgnore;
     private final String workingDirectory;
     private final RunMetadata runMetadata;
+    private final String testFilter;
+    private final int shardIndex;
+    private final int shardCount;
 
     private PhoenixfireConfiguration(Builder b) {
         this.classpath = List.copyOf(b.classpath);
@@ -62,6 +65,9 @@ public final class PhoenixfireConfiguration {
         this.testFailureIgnore = b.testFailureIgnore;
         this.workingDirectory = b.workingDirectory;
         this.runMetadata = b.runMetadata == null ? RunMetadata.empty() : b.runMetadata;
+        this.testFilter = b.testFilter;
+        this.shardIndex = b.shardIndex;
+        this.shardCount = b.shardCount;
     }
 
     public List<String> classpath() {
@@ -148,6 +154,21 @@ public final class PhoenixfireConfiguration {
         return runMetadata;
     }
 
+    /** Surefire {@code -Dtest} / Failsafe {@code -Dit.test} selection expression, or {@code null}. */
+    public String testFilter() {
+        return testFilter;
+    }
+
+    /** 1-based shard index; only meaningful when {@link #shardCount()} &gt; 1. */
+    public int shardIndex() {
+        return shardIndex;
+    }
+
+    /** Total number of shards; {@code <= 1} disables sharding. */
+    public int shardCount() {
+        return shardCount;
+    }
+
     public static Builder builder() {
         return new Builder();
     }
@@ -178,6 +199,9 @@ public final class PhoenixfireConfiguration {
         private boolean testFailureIgnore = false;
         private String workingDirectory;
         private RunMetadata runMetadata;
+        private String testFilter;
+        private int shardIndex = 0;
+        private int shardCount = 0;
 
         public Builder classpath(List<String> classpath) {
             this.classpath = new ArrayList<>(classpath);
@@ -283,6 +307,21 @@ public final class PhoenixfireConfiguration {
 
         public Builder runMetadata(RunMetadata runMetadata) {
             this.runMetadata = runMetadata;
+            return this;
+        }
+
+        public Builder testFilter(String testFilter) {
+            this.testFilter = testFilter == null || testFilter.isBlank() ? null : testFilter.trim();
+            return this;
+        }
+
+        public Builder shardIndex(int shardIndex) {
+            this.shardIndex = shardIndex;
+            return this;
+        }
+
+        public Builder shardCount(int shardCount) {
+            this.shardCount = shardCount;
             return this;
         }
 

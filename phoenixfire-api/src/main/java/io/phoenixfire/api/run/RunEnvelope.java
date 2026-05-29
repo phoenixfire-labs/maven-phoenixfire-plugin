@@ -22,6 +22,8 @@ public final class RunEnvelope {
     private final int maxAttempts;
     private final List<String> escalationLadder;
     private final int forkCount;
+    private final int shardIndex;
+    private final int shardCount;
     private final RunMetadata metadata;
 
     private RunEnvelope(Builder b) {
@@ -33,6 +35,8 @@ public final class RunEnvelope {
         this.maxAttempts = b.maxAttempts;
         this.escalationLadder = List.copyOf(b.escalationLadder);
         this.forkCount = b.forkCount;
+        this.shardIndex = b.shardIndex;
+        this.shardCount = b.shardCount;
         this.metadata = b.metadata == null ? RunMetadata.empty() : b.metadata;
     }
 
@@ -68,6 +72,16 @@ public final class RunEnvelope {
         return forkCount;
     }
 
+    /** 1-based shard index for this run; {@code 0} when sharding is disabled. */
+    public int shardIndex() {
+        return shardIndex;
+    }
+
+    /** Total number of shards; {@code 0} when sharding is disabled. */
+    public int shardCount() {
+        return shardCount;
+    }
+
     public RunMetadata metadata() {
         return metadata;
     }
@@ -86,6 +100,8 @@ public final class RunEnvelope {
         private int maxAttempts;
         private List<String> escalationLadder = new ArrayList<>();
         private int forkCount;
+        private int shardIndex;
+        private int shardCount;
         private RunMetadata metadata;
 
         public Builder runId(String v) {
@@ -125,6 +141,16 @@ public final class RunEnvelope {
 
         public Builder forkCount(int v) {
             this.forkCount = v;
+            return this;
+        }
+
+        public Builder shardIndex(int v) {
+            this.shardIndex = v;
+            return this;
+        }
+
+        public Builder shardCount(int v) {
+            this.shardCount = v;
             return this;
         }
 
