@@ -8,6 +8,7 @@ import io.phoenixfire.api.model.TestRecord;
 import io.phoenixfire.api.model.TestState;
 import io.phoenixfire.api.report.ReportModel;
 import io.phoenixfire.api.report.ReportWriter;
+import io.phoenixfire.api.run.RunEnvelope;
 import io.phoenixfire.api.spi.FailureClassifier;
 import io.phoenixfire.api.spi.FailureContext;
 import io.phoenixfire.api.spi.IsolationContext;
@@ -22,6 +23,7 @@ import io.phoenixfire.core.isolation.ConfigIsolationContext;
 import io.phoenixfire.core.isolation.IsolationStrategyRegistry;
 import io.phoenixfire.core.journal.ExecutionJournal;
 import io.phoenixfire.core.report.JUnitXmlReportWriter;
+import io.phoenixfire.core.report.JsonLinesReportWriter;
 import io.phoenixfire.core.report.NativeJsonReportWriter;
 import io.phoenixfire.core.retry.RetryPolicies;
 import io.phoenixfire.core.supervisor.AttemptOutcome;
@@ -32,11 +34,13 @@ import io.phoenixfire.core.supervisor.ForkSupervisor;
 import io.phoenixfire.core.util.PhoenixfireLogger;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.ServiceLoader;
+import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -67,6 +71,7 @@ public final class ExecutionEngine implements AutoCloseable {
     private final List<ReportWriter> reportWriters;
 
     private int port;
+    private final String runId = UUID.randomUUID().toString();
 
     public ExecutionEngine(PhoenixfireConfiguration config, PhoenixfireLogger log, ClassLoader spiLoader)
             throws IOException {
@@ -100,7 +105,7 @@ public final class ExecutionEngine implements AutoCloseable {
 
         if (discovered.isEmpty()) {
             log.info("No tests discovered.");
-            ReportModel model = journal.snapshot();
+            ReportModel model = snapshotWithEnvelope();
             writeReports(model);
             return new ExecutionSummary(model);
         }
@@ -124,11 +129,57 @@ public final class ExecutionEngine implements AutoCloseable {
 
         finalizeIncompleteTests();
 
-        ReportModel model = journal.snapshot();
+        ReportModel model = snapshotWithEnvelope();
         writeReports(model);
         logRetrySummary(model);
         log.info(new ExecutionSummary(model).describe());
         return new ExecutionSummary(model);
+    }
+
+    /** Snapshot the journal and attach this run's identity/context envelope. */
+    private ReportModel snapshotWithEnvelope() {
+        ReportModel base = journal.snapshot();
+        return new ReportModel(base.records(), base.startMillis(), base.endMillis(), buildEnvelope());
+    }
+
+    /** Assemble the run envelope from engine-known facts plus the externally-supplied metadata. */
+    private RunEnvelope buildEnvelope() {
+        List<String> ladder = new ArrayList<>();
+        for (IsolationLevel level : config.escalationLadder()) {
+            ladder.add(level.name());
+        }
+        String jvm = System.getProperty("java.version");
+        String vendor = System.getProperty("java.vendor");
+        if (jvm != null && vendor != null) {
+            jvm = jvm + " (" + vendor + ")";
+        }
+        return RunEnvelope.builder()
+                .runId(runId)
+                .host(detectHost())
+                .osName(System.getProperty("os.name"))
+                .osArch(System.getProperty("os.arch"))
+                .jvm(jvm)
+                .maxAttempts(config.maxAttempts())
+                .escalationLadder(ladder)
+                .forkCount(config.forkCount())
+                .metadata(config.runMetadata())
+                .build();
+    }
+
+    private static String detectHost() {
+        try {
+            String host = InetAddress.getLocalHost().getHostName();
+            if (host != null && !host.isBlank()) {
+                return host;
+            }
+        } catch (Exception ignored) {
+            // fall through to environment variables
+        }
+        String env = System.getenv("HOSTNAME");
+        if (env == null || env.isBlank()) {
+            env = System.getenv("COMPUTERNAME");
+        }
+        return env == null || env.isBlank() ? null : env;
     }
 
     /**
@@ -255,6 +306,7 @@ public final class ExecutionEngine implements AutoCloseable {
                     .outcome(outcomeState)
                     .failureMode(failureMode)
                     .forkId(result.forkId())
+                    .exitCode(result.exitCode())
                     .startMillis(now - duration)
                     .endMillis(now)
                     .throwableMessage(message)
@@ -364,6 +416,7 @@ public final class ExecutionEngine implements AutoCloseable {
         List<ReportWriter> writers = new ArrayList<>();
         writers.add(new JUnitXmlReportWriter());
         writers.add(new NativeJsonReportWriter());
+        writers.add(new JsonLinesReportWriter());
         for (ReportWriter w : ServiceLoader.load(ReportWriter.class, spiLoader)) {
             log.info("Registering custom report writer: " + w.getClass().getName());
             writers.add(w);

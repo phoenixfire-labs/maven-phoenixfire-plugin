@@ -110,6 +110,36 @@ public abstract class AbstractPhoenixfireMojo extends AbstractMojo {
     @Parameter(property = "maven.test.skip", defaultValue = "false")
     protected boolean mavenTestSkip;
 
+    // --- Run-envelope metadata (vendor-agnostic; overrides win, optional local git fallback) ---
+
+    /** Git commit SHA for the run envelope. Maps your CI's variable here, e.g. {@code -Dphoenixfire.git.sha=$GITHUB_SHA}. */
+    @Parameter(property = "phoenixfire.git.sha")
+    protected String gitSha;
+
+    /** Git branch for the run envelope, e.g. {@code -Dphoenixfire.git.branch=$GITHUB_REF_NAME}. */
+    @Parameter(property = "phoenixfire.git.branch")
+    protected String gitBranch;
+
+    /** CI provider label for the run envelope (free-form), e.g. {@code github}, {@code gitlab}. */
+    @Parameter(property = "phoenixfire.ci.provider")
+    protected String ciProvider;
+
+    /** CI build identifier for the run envelope, e.g. {@code -Dphoenixfire.ci.buildId=$GITHUB_RUN_ID}. */
+    @Parameter(property = "phoenixfire.ci.buildId")
+    protected String ciBuildId;
+
+    /** CI build URL for the run envelope. */
+    @Parameter(property = "phoenixfire.ci.buildUrl")
+    protected String ciBuildUrl;
+
+    /** Attempt a local {@code git} fallback for commit/branch/dirty when not supplied via overrides. */
+    @Parameter(property = "phoenixfire.collectGitMetadata", defaultValue = "true")
+    protected boolean collectGitMetadata;
+
+    /** Arbitrary user labels added to the run envelope (e.g. {@code service}, {@code team}). */
+    @Parameter
+    protected Map<String, String> runLabels = new LinkedHashMap<>();
+
     protected abstract boolean isSkipped();
 
     protected abstract List<String> defaultIncludes();
@@ -174,7 +204,22 @@ public abstract class AbstractPhoenixfireMojo extends AbstractMojo {
                 .journalFile(journalFile)
                 .testFailureIgnore(testFailureIgnore)
                 .workingDirectory(project.getBasedir() != null ? project.getBasedir().getAbsolutePath() : null)
+                .runMetadata(buildRunMetadata())
                 .build();
+    }
+
+    private io.phoenixfire.api.run.RunMetadata buildRunMetadata() {
+        RunMetadataFactory.Overrides overrides = new RunMetadataFactory.Overrides();
+        overrides.gitSha = gitSha;
+        overrides.gitBranch = gitBranch;
+        overrides.ciProvider = ciProvider;
+        overrides.ciBuildId = ciBuildId;
+        overrides.ciBuildUrl = ciBuildUrl;
+        overrides.groupId = project.getGroupId();
+        overrides.artifactId = project.getArtifactId();
+        overrides.version = project.getVersion();
+        overrides.labels = runLabels == null ? Map.of() : runLabels;
+        return RunMetadataFactory.build(overrides, project.getBasedir(), collectGitMetadata);
     }
 
     private List<String> buildForkClasspath() throws MojoExecutionException {

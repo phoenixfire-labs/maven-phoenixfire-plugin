@@ -92,6 +92,52 @@ public final class TestRecord {
         return false;
     }
 
+    /** Isolation level of the first attempt that failed or crashed, or {@code null} if none did. */
+    public IsolationLevel firstFailLevel() {
+        for (ExecutionAttempt attempt : attempts) {
+            TestState outcome = attempt.outcome();
+            if (outcome == TestState.FAILED || outcome == TestState.CRASHED) {
+                return attempt.isolationLevel();
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Isolation level at which this test finally succeeded after having previously failed/crashed,
+     * or {@code null} if it did not recover. This is the level that "rescued" the test.
+     */
+    public IsolationLevel recoveryLevel() {
+        if (!recovered()) {
+            return null;
+        }
+        ExecutionAttempt last = lastAttempt();
+        return last == null ? null : last.isolationLevel();
+    }
+
+    /**
+     * True if this test failed/crashed while running in a reused pooled fork
+     * ({@link IsolationLevel#SHARED_FORK_POOL}) but then succeeded once given a more isolated fork.
+     * This is the signature of a fork-reuse / state-pollution sensitivity: green in isolation, broken
+     * when sharing a JVM with other tests.
+     */
+    public boolean forkReuseSensitive() {
+        if (!recovered()) {
+            return false;
+        }
+        boolean failedUnderReuse = false;
+        for (ExecutionAttempt attempt : attempts) {
+            TestState outcome = attempt.outcome();
+            if (attempt.isolationLevel() == IsolationLevel.SHARED_FORK_POOL
+                    && (outcome == TestState.FAILED || outcome == TestState.CRASHED)) {
+                failedUnderReuse = true;
+            }
+        }
+        IsolationLevel recoveryLevel = recoveryLevel();
+        return failedUnderReuse && recoveryLevel != null
+                && recoveryLevel.ordinal() > IsolationLevel.SHARED_FORK_POOL.ordinal();
+    }
+
     void addAttempt(ExecutionAttempt attempt) {
         attempts.add(attempt);
         this.lastFailureMode = attempt.failureMode();

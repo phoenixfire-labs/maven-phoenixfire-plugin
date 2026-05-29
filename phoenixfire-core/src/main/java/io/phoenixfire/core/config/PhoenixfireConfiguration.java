@@ -1,6 +1,7 @@
 package io.phoenixfire.core.config;
 
 import io.phoenixfire.api.model.IsolationLevel;
+import io.phoenixfire.api.run.RunMetadata;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -37,6 +38,7 @@ public final class PhoenixfireConfiguration {
     private final File journalFile;
     private final boolean testFailureIgnore;
     private final String workingDirectory;
+    private final RunMetadata runMetadata;
 
     private PhoenixfireConfiguration(Builder b) {
         this.classpath = List.copyOf(b.classpath);
@@ -59,6 +61,7 @@ public final class PhoenixfireConfiguration {
         this.journalFile = b.journalFile;
         this.testFailureIgnore = b.testFailureIgnore;
         this.workingDirectory = b.workingDirectory;
+        this.runMetadata = b.runMetadata == null ? RunMetadata.empty() : b.runMetadata;
     }
 
     public List<String> classpath() {
@@ -141,6 +144,10 @@ public final class PhoenixfireConfiguration {
         return workingDirectory;
     }
 
+    public RunMetadata runMetadata() {
+        return runMetadata;
+    }
+
     public static Builder builder() {
         return new Builder();
     }
@@ -170,6 +177,7 @@ public final class PhoenixfireConfiguration {
         private File journalFile;
         private boolean testFailureIgnore = false;
         private String workingDirectory;
+        private RunMetadata runMetadata;
 
         public Builder classpath(List<String> classpath) {
             this.classpath = new ArrayList<>(classpath);
@@ -270,6 +278,11 @@ public final class PhoenixfireConfiguration {
 
         public Builder workingDirectory(String workingDirectory) {
             this.workingDirectory = workingDirectory;
+            return this;
+        }
+
+        public Builder runMetadata(RunMetadata runMetadata) {
+            this.runMetadata = runMetadata;
             return this;
         }
 

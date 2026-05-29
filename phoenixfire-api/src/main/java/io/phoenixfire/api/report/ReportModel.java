@@ -2,6 +2,7 @@ package io.phoenixfire.api.report;
 
 import io.phoenixfire.api.model.TestRecord;
 import io.phoenixfire.api.model.TestState;
+import io.phoenixfire.api.run.RunEnvelope;
 
 import java.util.Collections;
 import java.util.List;
@@ -16,15 +17,26 @@ public final class ReportModel {
     private final List<TestRecord> records;
     private final long startMillis;
     private final long endMillis;
+    private final RunEnvelope envelope;
 
     public ReportModel(List<TestRecord> records, long startMillis, long endMillis) {
+        this(records, startMillis, endMillis, null);
+    }
+
+    public ReportModel(List<TestRecord> records, long startMillis, long endMillis, RunEnvelope envelope) {
         this.records = Collections.unmodifiableList(records);
         this.startMillis = startMillis;
         this.endMillis = endMillis;
+        this.envelope = envelope;
     }
 
     public List<TestRecord> records() {
         return records;
+    }
+
+    /** Run identity/context, or {@code null} if not provided. */
+    public RunEnvelope envelope() {
+        return envelope;
     }
 
     public long startMillis() {

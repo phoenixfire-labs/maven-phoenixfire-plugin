@@ -132,9 +132,43 @@ Implement and register any of these (classes discovered on the project test clas
 Written to `target/phoenixfire-reports` (unit) / `target/phoenixfire-it-reports` (integration):
 
 - `TEST-<ClassName>.xml` - Surefire-compatible JUnit XML.
-- `phoenixfire-report.json` - native audit report (per-test attempts and escalation path).
+- `phoenixfire-report.json` - native audit report (run envelope, per-test attempts and escalation path).
+- `phoenixfire-facts.jsonl` - vendor-agnostic JSON Lines "fact table" for downstream analytics (see below).
 - `journal.ndjson` - crash-safe append-only event log (within-run resume).
 - `forks/<forkId>.log` - merged stdout/stderr per fork (diagnostic tails on failure).
+
+### Run envelope and the JSON Lines fact table
+
+Every report carries a **run envelope** identifying the run so results can be correlated over time:
+a generated `runId`, host/OS/JVM, the resilience config in effect, the Maven coordinates, plus
+optional git/CI metadata. The plugin is **CI-vendor-agnostic**: it auto-detects what it can in-process
+(host/OS/JVM, project, config), does a best-effort local `git` fallback for commit/branch/dirty, and
+otherwise reads neutral overrides that win over everything. Map your CI's variables onto them once:
+
+```bash
+mvn verify \
+  -Dphoenixfire.git.sha=$GITHUB_SHA \
+  -Dphoenixfire.git.branch=$GITHUB_REF_NAME \
+  -Dphoenixfire.ci.provider=github \
+  -Dphoenixfire.ci.buildId=$GITHUB_RUN_ID \
+  -Dphoenixfire.ci.buildUrl=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID
+```
+
+Arbitrary labels (e.g. `service`, `team`) can be added via the `runLabels` map parameter.
+
+`phoenixfire-facts.jsonl` is one JSON object per line, designed to be shipped verbatim into any
+pipeline (Loki via `| json`, Elasticsearch/ECS, Splunk, an OpenTelemetry Collector `filelog`
+receiver, or `jq`/DuckDB). Three record types: `run` (full envelope + summary), `test_result` (final
+state plus the fork-reuse diagnosis), and `test_attempt` (per attempt). Key low-cardinality
+dimensions (`runId`, `gitSha`, `gitBranch`, `os`, `jvm`) are denormalised onto every line so a log
+tool can slice without a join. Notable fields:
+
+- `forkReuseSensitive` - test failed/crashed in a reused pooled fork but passed once isolated
+  (state-pollution signature: "consistently fails with fork reuse").
+- `firstFailLevel` / `recoveryLevel` - where it first broke and which isolation level rescued it.
+- `forkReuse` (per attempt) - whether the attempt ran in a reused pooled JVM.
+- `exitCode`, `failureMode`, `failureSignature` - crash diagnostics; the signature clusters
+  "the same crash" across attempts and runs.
 
 ## Status
 

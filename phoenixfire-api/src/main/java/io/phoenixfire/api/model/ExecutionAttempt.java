@@ -11,6 +11,7 @@ public final class ExecutionAttempt {
     private final TestState outcome;
     private final FailureMode failureMode;
     private final String forkId;
+    private final int exitCode;
     private final long startMillis;
     private final long endMillis;
     private final String throwableMessage;
@@ -22,6 +23,7 @@ public final class ExecutionAttempt {
         this.outcome = b.outcome;
         this.failureMode = b.failureMode == null ? FailureMode.NONE : b.failureMode;
         this.forkId = b.forkId;
+        this.exitCode = b.exitCode;
         this.startMillis = b.startMillis;
         this.endMillis = b.endMillis;
         this.throwableMessage = b.throwableMessage;
@@ -46,6 +48,11 @@ public final class ExecutionAttempt {
 
     public String forkId() {
         return forkId;
+    }
+
+    /** Process exit code of the fork that ran this attempt; {@code 0} when not applicable/clean. */
+    public int exitCode() {
+        return exitCode;
     }
 
     public long startMillis() {
@@ -79,6 +86,7 @@ public final class ExecutionAttempt {
         private TestState outcome = TestState.NOT_RUN;
         private FailureMode failureMode = FailureMode.NONE;
         private String forkId;
+        private int exitCode;
         private long startMillis;
         private long endMillis;
         private String throwableMessage;
@@ -106,6 +114,11 @@ public final class ExecutionAttempt {
 
         public Builder forkId(String forkId) {
             this.forkId = forkId;
+            return this;
+        }
+
+        public Builder exitCode(int exitCode) {
+            this.exitCode = exitCode;
             return this;
         }
 
