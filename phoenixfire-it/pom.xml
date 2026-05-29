@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.phoenixfire</groupId>
+        <artifactId>phoenixfire</artifactId>
+        <version>0.1.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>phoenixfire-it</artifactId>
+    <packaging>pom</packaging>
+    <name>Phoenixfire Integration Tests</name>
+    <description>End-to-end integration tests that build sample projects with deliberately crashing/hanging tests and assert that Phoenixfire still produces complete reports with correct escalation. Activate with -Prun-its (requires the reactor artifacts to be installed first).</description>
+
+    <properties>
+        <maven.deploy.skip>true</maven.deploy.skip>
+        <maven.install.skip>true</maven.install.skip>
+    </properties>
+
+    <!-- Not used for compilation; declared so the reactor builds and installs the plugin first. -->
+    <dependencies>
+        <dependency>
+            <groupId>io.phoenixfire</groupId>
+            <artifactId>phoenixfire-maven-plugin</artifactId>
+            <version>${project.version}</version>
+            <scope>provided</scope>
+            <optional>true</optional>
+        </dependency>
+    </dependencies>
+
+    <profiles>
+        <profile>
+            <id>run-its</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-invoker-plugin</artifactId>
+                        <configuration>
+                            <projectsDirectory>src/it</projectsDirectory>
+                            <cloneProjectsTo>${project.build.directory}/it</cloneProjectsTo>
+                            <postBuildHookScript>verify</postBuildHookScript>
+                            <streamLogs>true</streamLogs>
+                            <showErrors>true</showErrors>
+                            <properties>
+                                <phoenixfire.version>${project.version}</phoenixfire.version>
+                            </properties>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <id>integration-test</id>
+                                <goals>
+                                    <goal>run</goal>
+                                </goals>
+                                <phase>integration-test</phase>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+
+</project>
