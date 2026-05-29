@@ -40,7 +40,12 @@ public class PhoenixfireTestMojo extends AbstractPhoenixfireMojo {
 
     @Override
     protected void handleResult(ExecutionSummary summary) throws MojoFailureException {
-        if (summary.hasFailures() && !testFailureIgnore) {
+        if (summary.flaky() > 0) {
+            getLog().warn(summary.flaky() + " test(s) recovered after an initial failure/crash (flaky)."
+                    + (failOnFlakyTests ? " Failing the build (failOnFlakyTests=true)."
+                    : " Not failing the build (set failOnFlakyTests=true to change this)."));
+        }
+        if (summary.shouldFailBuild(failOnFlakyTests) && !testFailureIgnore) {
             throw new MojoFailureException("There are test failures.\n\n" + summary.describe()
                     + "\nSee reports in " + reportsDir);
         }

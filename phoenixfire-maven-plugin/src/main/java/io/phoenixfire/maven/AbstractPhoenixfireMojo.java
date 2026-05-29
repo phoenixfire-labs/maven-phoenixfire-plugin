@@ -90,6 +90,14 @@ public abstract class AbstractPhoenixfireMojo extends AbstractMojo {
     @Parameter(property = "phoenixfire.testFailureIgnore", defaultValue = "false")
     protected boolean testFailureIgnore;
 
+    /**
+     * If {@code true}, a test that crashed/failed initially but recovered on a retry (flaky) also
+     * fails the build. By default ({@code false}) only tests that never recover - i.e. crash or fail
+     * on the initial attempt and on every enabled retry/escalation - fail the build.
+     */
+    @Parameter(property = "phoenixfire.failOnFlakyTests", defaultValue = "false")
+    protected boolean failOnFlakyTests;
+
     /** Skip test execution entirely. */
     @Parameter(property = "skipTests", defaultValue = "false")
     protected boolean skipTests;

@@ -64,6 +64,34 @@ public final class TestRecord {
         return attempts.isEmpty() ? null : attempts.get(attempts.size() - 1);
     }
 
+    /**
+     * True if this test ultimately succeeded but only after one or more failed/crashed attempts -
+     * i.e. it crashed or failed initially and was recovered by an escalated retry. Such "flaky"
+     * tests do not fail the build by default, but are reported so they remain visible.
+     */
+    public boolean recovered() {
+        if (!state.isSuccessful()) {
+            return false;
+        }
+        for (ExecutionAttempt attempt : attempts) {
+            TestState outcome = attempt.outcome();
+            if (outcome == TestState.FAILED || outcome == TestState.CRASHED) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** True if any attempt of this test crashed (infrastructure failure), regardless of final state. */
+    public boolean everCrashed() {
+        for (ExecutionAttempt attempt : attempts) {
+            if (attempt.outcome() == TestState.CRASHED) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     void addAttempt(ExecutionAttempt attempt) {
         attempts.add(attempt);
         this.lastFailureMode = attempt.failureMode();

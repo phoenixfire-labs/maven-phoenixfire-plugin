@@ -104,7 +104,19 @@ Surefire-parity: `includes`, `excludes`, `forkCount`, `argLine`, `systemProperty
 `environmentVariables`, `skipTests`/`maven.test.skip`, `testFailureIgnore`, `rerunFailingTestsCount`.
 
 Phoenixfire-specific: `maxAttempts`, `heartbeatInterval`, `heartbeatTimeout`, `backoff`,
-`escalationLadder` (list of `IsolationLevel` names), `journalEnabled`, `phoenixfire.reportsDirectory`.
+`escalationLadder` (list of `IsolationLevel` names), `journalEnabled`, `phoenixfire.reportsDirectory`,
+`failOnFlakyTests`.
+
+### Failure semantics (crash-then-recover)
+
+By default, the build fails **only** when a test never recovers - i.e. it crashes or fails on its
+initial attempt **and** on every enabled retry/escalation, ending in a terminal `CRASHED`/`FAILED`
+state. A test that crashes initially but is rescued by an escalated retry ends `PASSED`, is reported
+as **flaky** (`recovered: true` in the JSON report, `flaky` count in the summary), and does **not**
+fail the build.
+
+Set `failOnFlakyTests` (`-Dphoenixfire.failOnFlakyTests=true`) to also fail the build on any test
+that needed a retry to pass. Either way, flaky tests are always logged and recorded in the reports.
 
 ## Extensibility (SPI, via `java.util.ServiceLoader`)
 

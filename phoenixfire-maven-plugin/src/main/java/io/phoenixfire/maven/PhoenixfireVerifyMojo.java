@@ -25,6 +25,13 @@ public class PhoenixfireVerifyMojo extends AbstractMojo {
     @Parameter(property = "phoenixfire.testFailureIgnore", defaultValue = "false")
     private boolean testFailureIgnore;
 
+    /**
+     * If {@code true}, integration tests that recovered after an initial failure/crash (flaky) also
+     * fail the build. By default only tests that never recover fail the build.
+     */
+    @Parameter(property = "phoenixfire.failOnFlakyTests", defaultValue = "false")
+    private boolean failOnFlakyTests;
+
     @Parameter(property = "phoenixfire.skip", defaultValue = "false")
     private boolean skip;
 
@@ -51,10 +58,17 @@ public class PhoenixfireVerifyMojo extends AbstractMojo {
             return;
         }
         getLog().info("Phoenixfire verify: total=" + summary.total
-                + ", failed=" + summary.failed + ", crashed=" + summary.crashed);
-        if (summary.hasFailures() && !testFailureIgnore) {
+                + ", failed=" + summary.failed + ", crashed=" + summary.crashed
+                + ", flaky=" + summary.flaky);
+        if (summary.flaky > 0) {
+            getLog().warn(summary.flaky + " integration test(s) recovered after an initial failure/crash (flaky)."
+                    + (failOnFlakyTests ? " Failing the build (failOnFlakyTests=true)."
+                    : " Not failing the build (set failOnFlakyTests=true to change this)."));
+        }
+        if (summary.shouldFail(failOnFlakyTests) && !testFailureIgnore) {
             throw new MojoFailureException("There are integration test failures.\n"
                     + "Failures: " + summary.failed + ", Crashed: " + summary.crashed
+                    + ", Flaky: " + summary.flaky
                     + "\nSee reports in " + reportsDir);
         }
     }

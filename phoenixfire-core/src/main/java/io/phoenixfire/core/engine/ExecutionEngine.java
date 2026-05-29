@@ -126,8 +126,43 @@ public final class ExecutionEngine implements AutoCloseable {
 
         ReportModel model = journal.snapshot();
         writeReports(model);
+        logRetrySummary(model);
         log.info(new ExecutionSummary(model).describe());
         return new ExecutionSummary(model);
+    }
+
+    /**
+     * Logs a consolidated table of every test that needed more than one attempt: the conditions that
+     * forced each retry, the isolation level it ran at, the fork that ran it, and whether it ultimately
+     * recovered or stayed broken. This is the primary signal for teams triaging flaky/crashing tests.
+     */
+    private void logRetrySummary(ReportModel model) {
+        List<TestRecord> retried = new ArrayList<>();
+        for (TestRecord r : model.records()) {
+            if (r.attemptCount() > 1) {
+                retried.add(r);
+            }
+        }
+        if (retried.isEmpty()) {
+            return;
+        }
+        String nl = System.lineSeparator();
+        StringBuilder sb = new StringBuilder(nl);
+        sb.append("=== Phoenixfire retry summary: ").append(retried.size())
+                .append(retried.size() == 1 ? " test required retries ===" : " tests required retries ===").append(nl);
+        for (TestRecord r : retried) {
+            String status = r.recovered() ? "RECOVERED" : r.state().name();
+            sb.append("  ").append(String.format("%-10s", status)).append(label(r.testId())).append(nl);
+            for (ExecutionAttempt a : r.attempts()) {
+                sb.append(String.format("      attempt %-2d  %-20s %-28s %s%s",
+                        a.attemptNumber(),
+                        a.isolationLevel(),
+                        condition(a.outcome(), a.failureMode(), 0),
+                        a.forkId() == null ? "" : a.forkId(),
+                        nl));
+            }
+        }
+        log.info(sb.toString());
     }
 
     private void runLevel(IsolationLevel level, List<TestId> tests) {
@@ -228,6 +263,9 @@ public final class ExecutionEngine implements AutoCloseable {
             journal.recordAttempt(testId, attempt);
 
             if (!outcomeState.isSuccessful()) {
+                log.warn(label(testId) + " " + condition(outcomeState, failureMode, result.exitCode())
+                        + " in " + result.forkId() + " at " + unit.isolationLevel()
+                        + " (attempt " + attemptNumber + "/" + config.maxAttempts() + ")");
                 backoff = Math.max(backoff, maybeScheduleRetry(testId, unit.isolationLevel(),
                         outcomeState, failureMode, result.exitCode()));
             }
@@ -240,7 +278,8 @@ public final class ExecutionEngine implements AutoCloseable {
         TestRecord record = journal.record(testId);
         // Hard global cap guarantees termination regardless of the (possibly custom) policy.
         if (record.attemptCount() >= config.maxAttempts()) {
-            log.debug("Test " + testId + " reached maxAttempts (" + config.maxAttempts() + "); no further retries.");
+            log.warn(label(testId) + " exhausted its retry budget (maxAttempts=" + config.maxAttempts()
+                    + ") at " + currentLevel + "; recording terminal " + outcome + ".");
             return 0L;
         }
         FailureContext context = new FailureContext(outcome, failureMode, currentLevel,
@@ -248,10 +287,38 @@ public final class ExecutionEngine implements AutoCloseable {
         RetryDecision decision = retryPolicy.decide(record, context);
         if (decision.shouldRetry()) {
             journal.scheduleRetry(testId, decision.nextLevel());
-            log.debug("Scheduling retry of " + testId + " at level " + decision.nextLevel());
+            String escalation = decision.nextLevel() == currentLevel
+                    ? "re-running at " + currentLevel
+                    : "escalating " + currentLevel + " -> " + decision.nextLevel();
+            String backoffNote = decision.backoffMillis() > 0
+                    ? " after " + decision.backoffMillis() + "ms backoff" : "";
+            log.info("RETRY " + label(testId) + ": " + escalation + backoffNote
+                    + " (next attempt " + (record.attemptCount() + 1) + "/" + config.maxAttempts()
+                    + ", reason=" + condition(outcome, failureMode, exitCode) + ")");
             return decision.backoffMillis();
         }
+        log.warn(label(testId) + ": retry policy declined further retries after attempt "
+                + record.attemptCount() + " at " + currentLevel + "; recording terminal " + outcome + ".");
         return 0L;
+    }
+
+    /** Human-readable "Class#method" label for logs. */
+    private static String label(TestId id) {
+        String display = id.displayName() != null ? id.displayName() : id.uniqueId();
+        return id.className() + "#" + display;
+    }
+
+    /** Compact description of why an attempt did not succeed, e.g. {@code CRASHED (SIGKILL, exit=137)}. */
+    private static String condition(TestState outcome, FailureMode mode, int exitCode) {
+        if (outcome == TestState.CRASHED) {
+            String m = (mode == null || mode == FailureMode.NONE) ? "UNKNOWN" : mode.name();
+            return "CRASHED (" + m + (exitCode != 0 ? ", exit=" + exitCode : "") + ")";
+        }
+        if (outcome == TestState.FAILED) {
+            String m = (mode == null || mode == FailureMode.NONE) ? "ASSERTION_FAILURE" : mode.name();
+            return "FAILED (" + m + ")";
+        }
+        return outcome.name();
     }
 
     private void finalizeIncompleteTests() {

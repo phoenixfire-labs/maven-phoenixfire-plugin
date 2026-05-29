@@ -29,6 +29,7 @@ final class SummaryFile {
         props.setProperty("failed", Long.toString(summary.failed()));
         props.setProperty("crashed", Long.toString(summary.crashed()));
         props.setProperty("skipped", Long.toString(summary.skipped()));
+        props.setProperty("flaky", Long.toString(summary.flaky()));
         try (OutputStream out = Files.newOutputStream(new File(reportsDir, FILE_NAME).toPath())) {
             props.store(out, "Phoenixfire integration-test summary");
         }
@@ -46,7 +47,8 @@ final class SummaryFile {
         return new Summary(
                 parse(props, "total"),
                 parse(props, "failed"),
-                parse(props, "crashed"));
+                parse(props, "crashed"),
+                parse(props, "flaky"));
     }
 
     private static long parse(Properties props, String key) {
@@ -62,15 +64,21 @@ final class SummaryFile {
         final long total;
         final long failed;
         final long crashed;
+        final long flaky;
 
-        Summary(long total, long failed, long crashed) {
+        Summary(long total, long failed, long crashed, long flaky) {
             this.total = total;
             this.failed = failed;
             this.crashed = crashed;
+            this.flaky = flaky;
         }
 
         boolean hasFailures() {
             return failed > 0 || crashed > 0;
+        }
+
+        boolean shouldFail(boolean failOnFlaky) {
+            return hasFailures() || (failOnFlaky && flaky > 0);
         }
     }
 }

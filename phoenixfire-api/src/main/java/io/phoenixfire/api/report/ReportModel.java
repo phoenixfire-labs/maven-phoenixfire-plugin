@@ -47,6 +47,12 @@ public final class ReportModel {
         return records.stream().filter(r -> r.state() == state).count();
     }
 
+    /** Number of tests that ultimately succeeded but only after an initial failure/crash. */
+    public long flakyCount() {
+        return records.stream().filter(TestRecord::recovered).count();
+    }
+
+    /** True if any test ended in a non-recovered FAILED or CRASHED state. */
     public boolean hasFailures() {
         return records.stream().anyMatch(r -> r.state() == TestState.FAILED || r.state() == TestState.CRASHED);
     }

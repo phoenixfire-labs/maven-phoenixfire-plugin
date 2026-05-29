@@ -41,6 +41,7 @@ public final class NativeJsonReportWriter implements ReportWriter {
         summary.put("skipped", model.count(TestState.SKIPPED));
         summary.put("notRun", model.count(TestState.NOT_RUN));
         summary.put("running", model.count(TestState.RUNNING));
+        summary.put("flaky", model.flakyCount());
         root.put("summary", summary);
 
         List<Object> tests = new ArrayList<>();
@@ -61,6 +62,7 @@ public final class NativeJsonReportWriter implements ReportWriter {
         obj.put("finalState", r.state().name());
         obj.put("lastFailureMode", r.lastFailureMode().name());
         obj.put("attemptCount", r.attemptCount());
+        obj.put("recovered", r.recovered());
 
         List<Object> escalationPath = new ArrayList<>();
         List<Object> attempts = new ArrayList<>();
