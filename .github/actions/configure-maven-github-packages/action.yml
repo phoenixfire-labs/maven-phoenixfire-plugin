@@ -1,0 +1,27 @@
+name: Configure Maven for GitHub Packages
+description: Writes ~/.m2/settings.xml for distributionManagement server id "github"
+inputs:
+  token:
+    description: Classic PAT with write:packages (or GITHUB_TOKEN if your org allows it)
+    required: true
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        mkdir -p ~/.m2
+        cat > ~/.m2/settings.xml <<'SETTINGS_EOF'
+        <settings xmlns="http://maven.apache.org/SETTINGS/1.2.0"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.2.0 https://maven.apache.org/xsd/settings-1.2.0.xsd">
+          <servers>
+            <server>
+              <id>github</id>
+              <username>x-access-token</username>
+              <password>TOKEN_PLACEHOLDER</password>
+            </server>
+          </servers>
+        </settings>
+        SETTINGS_EOF
+        # Inject token without exposing it in the workflow log (heredoc is single-quoted above).
+        sed -i "s|TOKEN_PLACEHOLDER|${{ inputs.token }}|g" ~/.m2/settings.xml

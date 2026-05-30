@@ -34,7 +34,7 @@
         <maven.compiler.release>17</maven.compiler.release>
 
         <!-- Single source of truth for the reactor version (CI-friendly / release-friendly). -->
-        <revision>0.1.0-SNAPSHOT</revision>
+        <revision>0.1.1-SNAPSHOT</revision>
         <phoenixfire.version>${revision}</phoenixfire.version>
 
         <junit.platform.version>1.10.2</junit.platform.version>

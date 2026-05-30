@@ -1,6 +1,6 @@
 name: Publish to GitHub Packages
 
-# Create a GitHub Release (tag vX.Y.Z) → CI deploys that version, then bumps main to the next SNAPSHOT.
+# Release tag or GitHub Release → deploy that version, then bump main to the next SNAPSHOT.
 on:
   release:
     types: [published]
@@ -13,8 +13,6 @@ on:
         description: 'Release version without v prefix (e.g. 0.1.0)'
         required: true
 
-# GITHUB_TOKEN must be allowed to write packages (repo Settings → Actions → Workflow permissions:
-# "Read and write permissions").
 permissions:
   contents: write
   packages: write
@@ -31,6 +29,15 @@ jobs:
       version: ${{ steps.version.outputs.version }}
 
     steps:
+      - name: Require PACKAGES_PUBLISH_TOKEN
+        run: |
+          if [ -z "${{ secrets.PACKAGES_PUBLISH_TOKEN }}" ]; then
+            echo "::error::Repository secret PACKAGES_PUBLISH_TOKEN is required."
+            echo "Create a classic PAT with write:packages (and read:packages), add it under"
+            echo "Settings → Secrets and variables → Actions → New repository secret."
+            exit 1
+          fi
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -65,9 +72,11 @@ jobs:
           distribution: temurin
           java-version: '17'
           cache: maven
-          server-id: github
-          server-username: x-access-token
-          server-password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure GitHub Packages credentials
+        uses: ./.github/actions/configure-maven-github-packages
+        with:
+          token: ${{ secrets.PACKAGES_PUBLISH_TOKEN }}
 
       - name: Set Maven version from release tag
         run: mvn -B -ntp versions:set-property -Dproperty=revision -DnewVersion=${{ steps.version.outputs.version }} -DgenerateBackupPoms=false

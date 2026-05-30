@@ -322,19 +322,30 @@ The **Publish to GitHub Packages** workflow then:
    `x.y.z`). Example: after `0.2.0` → `0.2.1-SNAPSHOT`.
 
 You can also push a tag alone (`git tag v0.1.0 && git push origin v0.1.0`) or run the workflow
-manually with a version input. The workflow is defined in `.github/workflows/publish.yml`.
+manually with a version input (`.github/workflows/publish.yml`).
+
+### SNAPSHOT builds for testing
+
+Every push to **`main`** runs **Publish SNAPSHOT to GitHub Packages** (`.github/workflows/publish-snapshot.yml`).
+It deploys whatever `<revision>` is in `pom.xml` (must end with `-SNAPSHOT`, e.g. `0.1.1-SNAPSHOT`).
+Use that coordinate in a consumer project while iterating.
+
+### One-time: `PACKAGES_PUBLISH_TOKEN` (fixes 401)
+
+Maven deploy to GitHub Packages usually **cannot** use `GITHUB_TOKEN` alone (401 Unauthorized). Add a
+repository secret once:
+
+1. GitHub → **Settings → Developer settings → Personal access tokens → Tokens (classic)** → generate.
+2. Scopes: **`write:packages`**, **`read:packages`**, and **`repo`** if this repository is private.
+3. Repo → **Settings → Secrets and variables → Actions** → **New repository secret** → name
+   `PACKAGES_PUBLISH_TOKEN`, paste the token.
+
+Both publish workflows fail fast with instructions if the secret is missing.
 
 `phoenixfire-it` is not published (`maven.deploy.skip`).
 
-Maintainers with `write:packages` can deploy locally: add the `github` server to `~/.m2/settings.xml`, then:
-
-```bash
-mvn -B -ntp clean deploy -Prun-its
-```
-
-If the publish workflow fails with **401 Unauthorized**, check **Settings → Actions → General →
-Workflow permissions** is **Read and write permissions** (so `GITHUB_TOKEN` can write packages).
-Re-run the workflow after merging the publish workflow fix (`server-username: x-access-token`).
+Local deploy: same `github` server in `~/.m2/settings.xml` (`username` = your GitHub user,
+`password` = a PAT with `write:packages`), then `mvn -B -ntp clean deploy -Prun-its`.
 
 ## Status
 
