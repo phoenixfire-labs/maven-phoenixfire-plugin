@@ -47,6 +47,19 @@ is restarting terminated forks with configurable retry logic and more.
 - Maven 3.6.3+
 - JUnit 5 (JUnit Platform). JUnit 4 tests run transparently via the JUnit Vintage engine if present.
 
+### JDK 17 vs 21 in CI
+
+CI builds and tests on both JDK 17 and 21; **publish** builds once on JDK 17. There is a single set
+of published artifacts (`io.phoenixfire:*`), compiled with `maven.compiler.release` **17** (Java 17
+bytecode). You do **not** publish separate coordinates per JDK.
+
+- **Consumer on JDK 17** — supported (baseline).
+- **Consumer on JDK 21** — supported; the JVM runs Java 17 bytecode without a separate plugin build.
+
+Test **forks** use the JDK configured for the project under test (Maven `java` / toolchain), not the
+JDK used to compile Phoenixfire. The matrix only proves the plugin runs correctly when Maven itself
+is on 17 or 21.
+
 ## Usage: opt-in full replacement of Surefire/Failsafe
 
 Disable the built-in Surefire/Failsafe executions and bind Phoenixfire to `test`,
@@ -318,6 +331,10 @@ Maintainers with `write:packages` can deploy locally: add the `github` server to
 ```bash
 mvn -B -ntp clean deploy -Prun-its
 ```
+
+If the publish workflow fails with **401 Unauthorized**, check **Settings → Actions → General →
+Workflow permissions** is **Read and write permissions** (so `GITHUB_TOKEN` can write packages).
+Re-run the workflow after merging the publish workflow fix (`server-username: x-access-token`).
 
 ## Status
 

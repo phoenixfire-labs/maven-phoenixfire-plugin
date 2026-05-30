@@ -13,6 +13,12 @@ on:
         description: 'Release version without v prefix (e.g. 0.1.0)'
         required: true
 
+# GITHUB_TOKEN must be allowed to write packages (repo Settings → Actions → Workflow permissions:
+# "Read and write permissions").
+permissions:
+  contents: write
+  packages: write
+
 concurrency:
   group: publish-${{ github.ref }}
   cancel-in-progress: false
@@ -21,9 +27,6 @@ jobs:
   publish:
     name: Deploy to GitHub Packages
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
     outputs:
       version: ${{ steps.version.outputs.version }}
 
@@ -63,7 +66,7 @@ jobs:
           java-version: '17'
           cache: maven
           server-id: github
-          server-username: ${{ github.actor }}
+          server-username: x-access-token
           server-password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set Maven version from release tag
@@ -76,8 +79,6 @@ jobs:
     name: Bump main to next SNAPSHOT
     needs: publish
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
 
     steps:
       - name: Checkout main
