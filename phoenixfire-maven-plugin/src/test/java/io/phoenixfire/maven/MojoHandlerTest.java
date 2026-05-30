@@ -41,7 +41,18 @@ class MojoHandlerTest {
     private static void invokeHandleResult(PhoenixfireTestMojo mojo, ExecutionSummary summary) throws Exception {
         var m = PhoenixfireTestMojo.class.getDeclaredMethod("handleResult", ExecutionSummary.class);
         m.setAccessible(true);
-        m.invoke(mojo, summary);
+        try {
+            m.invoke(mojo, summary);
+        } catch (java.lang.reflect.InvocationTargetException e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof Exception ex) {
+                throw ex;
+            }
+            if (cause instanceof Error err) {
+                throw err;
+            }
+            throw e;
+        }
     }
 
     private static void setField(Object target, String name, Object value) throws Exception {

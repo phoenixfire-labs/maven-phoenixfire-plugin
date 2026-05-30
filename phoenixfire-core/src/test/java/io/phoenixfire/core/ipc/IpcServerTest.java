@@ -6,9 +6,7 @@ import io.phoenixfire.core.util.PhoenixfireLogger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.Socket;
@@ -71,7 +69,7 @@ class IpcServerTest {
             ForkChannel ch = channelRef.get();
             assertNotNull(ch);
             ch.send(Map.of(IpcProtocol.FIELD_TYPE, IpcProtocol.MSG_HEARTBEAT));
-            sendLine(socket, Map.of(IpcProtocol.FIELD_TYPE, IpcProtocol.MSG_HEARTBEAT));
+            writeLine(socket, Map.of(IpcProtocol.FIELD_TYPE, IpcProtocol.MSG_HEARTBEAT));
         }
         assertTrue(disconnected.await(5, TimeUnit.SECONDS));
     }
@@ -103,7 +101,7 @@ class IpcServerTest {
             // connection closed
         }
         try (Socket socket = new Socket(InetAddress.getLoopbackAddress(), port)) {
-            sendLine(socket, Map.of(IpcProtocol.FIELD_TYPE, "NOT_HELLO"));
+            writeLine(socket, Map.of(IpcProtocol.FIELD_TYPE, "NOT_HELLO"));
         }
     }
 
@@ -113,16 +111,13 @@ class IpcServerTest {
         hello.put(IpcProtocol.FIELD_TYPE, IpcProtocol.MSG_HELLO);
         hello.put(IpcProtocol.FIELD_FORK_ID, forkId);
         hello.put(IpcProtocol.FIELD_TOKEN, token);
-        sendLine(socket, hello);
+        writeLine(socket, hello);
         return socket;
     }
 
-    private static void sendLine(Socket socket, Map<String, Object> message) throws IOException {
+    private static void writeLine(Socket socket, Map<String, Object> message) throws IOException {
         OutputStream out = socket.getOutputStream();
         out.write((Json.encode(message) + "\n").getBytes(StandardCharsets.UTF_8));
         out.flush();
-        BufferedReader in = new BufferedReader(
-                new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
-        in.readLine();
     }
 }

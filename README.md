@@ -218,7 +218,7 @@ mvn clean verify              # unit tests + coverage check
 mvn clean verify install -Prun-its   # CI parity
 ```
 
-Open `target/site/jacoco-aggregate/index.html` after a build. See [docs/COVERAGE.md](docs/COVERAGE.md)
+Open `phoenixfire-coverage/target/site/jacoco-aggregate/index.html` after a build. See [docs/COVERAGE.md](docs/COVERAGE.md)
 for scope, CI artifacts, and notes on what the gate does and does not measure.
 
 ## Extensibility (SPI, via `java.util.ServiceLoader`)
