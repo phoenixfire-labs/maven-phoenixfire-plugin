@@ -292,13 +292,34 @@ Then depend on a released version, for example:
 
 ## Publishing
 
-Maintainers deploy with the **Publish to GitHub Packages** workflow (Actions → workflow_dispatch), or by
-pushing a version tag (`v0.1.0`) whose version matches `pom.xml` (non-`SNAPSHOT` for releases). The
-workflow runs the full test suite (`-Prun-its`) then `mvn deploy`. Integration-test module
+Versioning uses the usual Maven **CI-friendly `${revision}` property** (see [Maven CI Friendly
+Versions](https://maven.apache.org/maven-ci-friendly.html)): `main` stays at `0.x.y-SNAPSHOT` in
+`pom.xml`; release versions come from the Git tag, not a manual POM edit.
+
+### Create a release (recommended)
+
+1. In GitHub: **Releases → Create a new release**.
+2. Choose tag **`v0.1.0`** (with `v` prefix) targeting `main`.
+3. Publish the release.
+
+The **Publish to GitHub Packages** workflow runs automatically: it reads the tag (`0.1.0`), sets
+`revision` for that build, runs tests, and deploys to GitHub Packages. Consumers use `0.1.0`, not
+`0.1.0-SNAPSHOT`.
+
+You can also push a tag alone (`git tag v0.1.0 && git push origin v0.1.0`) or run the workflow
+manually with a version input.
+
+### Other off-the-shelf options (not configured here)
+
+| Approach | How it works |
+|----------|----------------|
+| **GitHub Release + tag (this repo)** | Tag drives version in CI; `main` stays SNAPSHOT. |
+| **[`maven-release-plugin`](https://maven.apache.org/maven-release/maven-release-plugin/)** | `release:prepare` / `release:perform` bumps POM, commits, tags, deploys from your machine or CI. |
+| **[release-please](https://github.com/googleapis/release-please)** | Bot opens version-bump PRs with changelogs; merge → tag → publish. |
+
 `phoenixfire-it` is not published (`maven.deploy.skip`).
 
-Local deploy: add the `github` server to `~/.m2/settings.xml` (`password` = token with
-`write:packages`), then:
+Local deploy: `github` server in `~/.m2/settings.xml` (`write:packages`), then:
 
 ```bash
 mvn -B -ntp clean deploy -Prun-its
