@@ -11,6 +11,14 @@
 
     <name>Phoenixfire</name>
     <description>Fault-tolerant test orchestration for Maven: a resilient supervisory replacement for Surefire/Failsafe.</description>
+    <url>https://github.com/BenManifold/maven-phoenixfire-plugin</url>
+
+    <scm>
+        <connection>scm:git:https://github.com/BenManifold/maven-phoenixfire-plugin.git</connection>
+        <developerConnection>scm:git:https://github.com/BenManifold/maven-phoenixfire-plugin.git</developerConnection>
+        <url>https://github.com/BenManifold/maven-phoenixfire-plugin</url>
+        <tag>HEAD</tag>
+    </scm>
 
     <modules>
         <module>phoenixfire-api</module>
@@ -36,7 +44,23 @@
         <maven-surefire-plugin.version>3.2.5</maven-surefire-plugin.version>
         <maven-jar-plugin.version>3.4.1</maven-jar-plugin.version>
         <maven-invoker-plugin.version>3.6.1</maven-invoker-plugin.version>
+
+        <!-- GitHub Packages registry for this repository (override for forks). -->
+        <github.repository>BenManifold/maven-phoenixfire-plugin</github.repository>
     </properties>
+
+    <distributionManagement>
+        <repository>
+            <id>github</id>
+            <name>GitHub Packages</name>
+            <url>https://maven.pkg.github.com/${github.repository}</url>
+        </repository>
+        <snapshotRepository>
+            <id>github</id>
+            <name>GitHub Packages</name>
+            <url>https://maven.pkg.github.com/${github.repository}</url>
+        </snapshotRepository>
+    </distributionManagement>
 
     <dependencyManagement>
         <dependencies>

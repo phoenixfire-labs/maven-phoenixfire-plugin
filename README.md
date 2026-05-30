@@ -243,6 +243,67 @@ tool can slice without a join. Notable fields:
 - `exitCode`, `failureMode`, `failureSignature` - crash diagnostics; the signature clusters
   "the same crash" across attempts and runs.
 
+## Using from GitHub Packages
+
+Artifacts are published to [GitHub Packages](https://github.com/BenManifold/maven-phoenixfire-plugin/packages)
+for this repository (`io.phoenixfire:*`).
+
+Add the repository and authenticate (a [classic PAT](https://github.com/settings/tokens) or fine-grained
+token with `read:packages`, or `GITHUB_TOKEN` in CI) with server id `github`:
+
+```xml
+<repositories>
+  <repository>
+    <id>github</id>
+    <url>https://maven.pkg.github.com/BenManifold/maven-phoenixfire-plugin</url>
+    <snapshots><enabled>true</enabled></snapshots>
+  </repository>
+</repositories>
+<pluginRepositories>
+  <pluginRepository>
+    <id>github</id>
+    <url>https://maven.pkg.github.com/BenManifold/maven-phoenixfire-plugin</url>
+    <snapshots><enabled>true</enabled></snapshots>
+  </pluginRepository>
+</pluginRepositories>
+```
+
+In `~/.m2/settings.xml` (or CI secrets):
+
+```xml
+<servers>
+  <server>
+    <id>github</id>
+    <username>YOUR_GITHUB_USERNAME</username>
+    <password>YOUR_TOKEN</password>
+  </server>
+</servers>
+```
+
+Then depend on a released version, for example:
+
+```xml
+<plugin>
+  <groupId>io.phoenixfire</groupId>
+  <artifactId>phoenixfire-maven-plugin</artifactId>
+  <version>0.1.0</version>
+</plugin>
+```
+
+## Publishing
+
+Maintainers deploy with the **Publish to GitHub Packages** workflow (Actions → workflow_dispatch), or by
+pushing a version tag (`v0.1.0`) whose version matches `pom.xml` (non-`SNAPSHOT` for releases). The
+workflow runs the full test suite (`-Prun-its`) then `mvn deploy`. Integration-test module
+`phoenixfire-it` is not published (`maven.deploy.skip`).
+
+Local deploy: add the `github` server to `~/.m2/settings.xml` (`password` = token with
+`write:packages`), then:
+
+```bash
+mvn -B -ntp clean deploy -Prun-its
+```
+
 ## Status
 
 MVP. JUnit 5 Platform only; within-run resume only (no cross-run resume yet).
