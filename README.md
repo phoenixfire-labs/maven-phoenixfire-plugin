@@ -207,7 +207,7 @@ Written to `target/phoenixfire-reports` (unit) / `target/phoenixfire-it-reports`
 - `TEST-<ClassName>.xml` - Surefire-compatible JUnit XML.
 - `phoenixfire-report.json` - native audit report (run envelope, per-test attempts and escalation path).
 - `phoenixfire-facts.jsonl` - vendor-agnostic JSON Lines "fact table" for downstream analytics (see below).
-- `journal.ndjson` - crash-safe append-only event log (within-run resume).
+- `journal.ndjson` - crash-safe append-only event log (when `journalEnabled` is true).
 - `forks/<forkId>.log` - merged stdout/stderr per fork (diagnostic tails on failure).
 
 ### Run envelope and the JSON Lines fact table
@@ -293,8 +293,8 @@ Then depend on a released version, for example:
 ## Publishing
 
 Versioning uses the usual Maven **CI-friendly `${revision}` property** (see [Maven CI Friendly
-Versions](https://maven.apache.org/maven-ci-friendly.html)): `main` stays at `0.x.y-SNAPSHOT` in
-`pom.xml`; release versions come from the Git tag, not a manual POM edit.
+Versions](https://maven.apache.org/maven-ci-friendly.html)). Release versions come from the Git tag,
+not a manual edit at release time.
 
 ### Create a release (recommended)
 
@@ -302,24 +302,18 @@ Versions](https://maven.apache.org/maven-ci-friendly.html)): `main` stays at `0.
 2. Choose tag **`v0.1.0`** (with `v` prefix) targeting `main`.
 3. Publish the release.
 
-The **Publish to GitHub Packages** workflow runs automatically: it reads the tag (`0.1.0`), sets
-`revision` for that build, runs tests, and deploys to GitHub Packages. Consumers use `0.1.0`, not
-`0.1.0-SNAPSHOT`.
+The **Publish to GitHub Packages** workflow then:
+
+1. Deploys **`x.y.z`** to GitHub Packages (consumers use that coordinate, not `-SNAPSHOT`).
+2. Commits to **`main`** the next development version: **`x.y.z+1-SNAPSHOT`** (patch + 1 after
+   `x.y.z`). Example: after `0.2.0` → `0.2.1-SNAPSHOT`.
 
 You can also push a tag alone (`git tag v0.1.0 && git push origin v0.1.0`) or run the workflow
-manually with a version input.
-
-### Other off-the-shelf options (not configured here)
-
-| Approach | How it works |
-|----------|----------------|
-| **GitHub Release + tag (this repo)** | Tag drives version in CI; `main` stays SNAPSHOT. |
-| **[`maven-release-plugin`](https://maven.apache.org/maven-release/maven-release-plugin/)** | `release:prepare` / `release:perform` bumps POM, commits, tags, deploys from your machine or CI. |
-| **[release-please](https://github.com/googleapis/release-please)** | Bot opens version-bump PRs with changelogs; merge → tag → publish. |
+manually with a version input. The workflow is defined in `.github/workflows/publish.yml`.
 
 `phoenixfire-it` is not published (`maven.deploy.skip`).
 
-Local deploy: `github` server in `~/.m2/settings.xml` (`write:packages`), then:
+Maintainers with `write:packages` can deploy locally: add the `github` server to `~/.m2/settings.xml`, then:
 
 ```bash
 mvn -B -ntp clean deploy -Prun-its
@@ -327,7 +321,7 @@ mvn -B -ntp clean deploy -Prun-its
 
 ## Status
 
-MVP. JUnit 5 Platform only; within-run resume only (no cross-run resume yet).
+MVP. JUnit 5 Platform only.
 
 ## Trademarks
 
