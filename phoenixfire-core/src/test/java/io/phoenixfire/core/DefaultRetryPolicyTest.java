@@ -25,17 +25,21 @@ class DefaultRetryPolicyTest {
             IsolationLevel.ONE_FORK_PER_CLASS);
 
     private TestRecord recordWithAttempts(int count, TestState outcome, FailureMode mode) {
+        return recordWithAttempts(count, outcome, mode, IsolationLevel.SHARED_FORK_POOL);
+    }
+
+    private TestRecord recordWithAttempts(int count, TestState outcome, FailureMode mode, IsolationLevel level) {
         TestRecord record = new TestRecord(new TestId("id", "Cls", "test()"));
         for (int i = 0; i < count; i++) {
             record.internalAddAttempt(ExecutionAttempt.builder()
-                    .attemptNumber(i + 1).outcome(outcome).failureMode(mode).build());
+                    .attemptNumber(i + 1).isolationLevel(level).outcome(outcome).failureMode(mode).build());
         }
         return record;
     }
 
     @Test
-    void crashedTestNeverRetriesInSharedPool() {
-        DefaultRetryPolicy policy = new DefaultRetryPolicy(3, 0, 0L, LADDER);
+    void crashedTestNeverRetriesInSharedPoolByDefault() {
+        DefaultRetryPolicy policy = new DefaultRetryPolicy(3, 0, 0L, LADDER, 1);
         TestRecord record = recordWithAttempts(1, TestState.CRASHED, FailureMode.SIGKILL);
 
         RetryDecision decision = policy.decide(record,
@@ -46,9 +50,36 @@ class DefaultRetryPolicyTest {
     }
 
     @Test
+    void sharedCrashResumesInSharedPoolWhilePassesRemain() {
+        DefaultRetryPolicy policy = new DefaultRetryPolicy(5, 0, 0L, LADDER, 2);
+        // One shared-pool attempt so far (the current crash); a second shared pass is still allowed.
+        TestRecord record = recordWithAttempts(1, TestState.CRASHED, FailureMode.SIGKILL);
+
+        RetryDecision decision = policy.decide(record,
+                new FailureContext(TestState.CRASHED, FailureMode.SIGKILL, IsolationLevel.SHARED_FORK_POOL, 1, 137));
+
+        assertTrue(decision.shouldRetry());
+        assertEquals(IsolationLevel.SHARED_FORK_POOL, decision.nextLevel());
+    }
+
+    @Test
+    void sharedCrashEscalatesAfterPassesExhausted() {
+        DefaultRetryPolicy policy = new DefaultRetryPolicy(5, 0, 0L, LADDER, 2);
+        // Two shared-pool attempts already used; the next infrastructure failure must isolate.
+        TestRecord record = recordWithAttempts(2, TestState.CRASHED, FailureMode.SIGKILL);
+
+        RetryDecision decision = policy.decide(record,
+                new FailureContext(TestState.CRASHED, FailureMode.SIGKILL, IsolationLevel.SHARED_FORK_POOL, 2, 137));
+
+        assertTrue(decision.shouldRetry());
+        assertEquals(IsolationLevel.FRESH_FORK, decision.nextLevel());
+    }
+
+    @Test
     void crashedTestEscalatesAlongLadder() {
-        DefaultRetryPolicy policy = new DefaultRetryPolicy(5, 0, 0L, LADDER);
-        TestRecord record = recordWithAttempts(1, TestState.CRASHED, FailureMode.HEARTBEAT_TIMEOUT);
+        DefaultRetryPolicy policy = new DefaultRetryPolicy(5, 0, 0L, LADDER, 1);
+        TestRecord record = recordWithAttempts(1, TestState.CRASHED, FailureMode.HEARTBEAT_TIMEOUT,
+                IsolationLevel.FRESH_FORK);
 
         RetryDecision decision = policy.decide(record,
                 new FailureContext(TestState.CRASHED, FailureMode.HEARTBEAT_TIMEOUT,
@@ -60,8 +91,8 @@ class DefaultRetryPolicyTest {
 
     @Test
     void stopsRetryingAtMaxAttempts() {
-        DefaultRetryPolicy policy = new DefaultRetryPolicy(2, 5, 0L, LADDER);
-        TestRecord record = recordWithAttempts(2, TestState.CRASHED, FailureMode.OOM);
+        DefaultRetryPolicy policy = new DefaultRetryPolicy(2, 5, 0L, LADDER, 1);
+        TestRecord record = recordWithAttempts(2, TestState.CRASHED, FailureMode.OOM, IsolationLevel.FRESH_FORK);
 
         RetryDecision decision = policy.decide(record,
                 new FailureContext(TestState.CRASHED, FailureMode.OOM, IsolationLevel.FRESH_FORK, 2, 137));
@@ -71,7 +102,7 @@ class DefaultRetryPolicyTest {
 
     @Test
     void deterministicFailureRerunsAtSameLevelWithinCount() {
-        DefaultRetryPolicy policy = new DefaultRetryPolicy(5, 2, 0L, LADDER);
+        DefaultRetryPolicy policy = new DefaultRetryPolicy(5, 2, 0L, LADDER, 1);
         TestRecord record = recordWithAttempts(1, TestState.FAILED, FailureMode.ASSERTION_FAILURE);
 
         RetryDecision decision = policy.decide(record,
@@ -84,7 +115,7 @@ class DefaultRetryPolicyTest {
 
     @Test
     void deterministicFailureStopsAfterRerunCount() {
-        DefaultRetryPolicy policy = new DefaultRetryPolicy(5, 1, 0L, LADDER);
+        DefaultRetryPolicy policy = new DefaultRetryPolicy(5, 1, 0L, LADDER, 1);
         TestRecord record = recordWithAttempts(2, TestState.FAILED, FailureMode.ASSERTION_FAILURE);
 
         RetryDecision decision = policy.decide(record,

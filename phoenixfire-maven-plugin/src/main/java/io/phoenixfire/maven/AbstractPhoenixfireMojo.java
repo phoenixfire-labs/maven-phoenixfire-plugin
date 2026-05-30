@@ -99,6 +99,16 @@ public abstract class AbstractPhoenixfireMojo extends AbstractMojo {
     @Parameter(property = "phoenixfire.rerunFailingTestsCount", defaultValue = "0")
     protected int rerunFailingTestsCount;
 
+    /**
+     * Attempts allowed in the shared fork pool before an infrastructure failure (crash/hang/OOM)
+     * escalates to an isolated fork. The default {@code 1} escalates on the first shared-pool crash;
+     * a higher value resumes the affected tests in a fresh shared-pool fork that many times first -
+     * the "run in a shared JVM, restart where the dead fork left off, then isolate" workflow. Bounded
+     * by {@code maxAttempts}.
+     */
+    @Parameter(property = "phoenixfire.sharedForkPoolMaxPasses", defaultValue = "1")
+    protected int sharedForkPoolMaxPasses;
+
     /** Heartbeat emit interval inside forks, in milliseconds. */
     @Parameter(property = "phoenixfire.heartbeatInterval", defaultValue = "2000")
     protected long heartbeatInterval;
@@ -250,6 +260,7 @@ public abstract class AbstractPhoenixfireMojo extends AbstractMojo {
                 .forkCount(forkCount)
                 .maxAttempts(maxAttempts)
                 .rerunFailingTestsCount(rerunFailingTestsCount)
+                .sharedForkPoolMaxPasses(sharedForkPoolMaxPasses)
                 .heartbeatIntervalMillis(heartbeatInterval)
                 .heartbeatTimeoutMillis(heartbeatTimeout)
                 .backoffMillis(backoff)

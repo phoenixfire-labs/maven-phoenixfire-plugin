@@ -28,6 +28,7 @@ public final class PhoenixfireConfiguration {
     private final int forkCount;
     private final int maxAttempts;
     private final int rerunFailingTestsCount;
+    private final int sharedForkPoolMaxPasses;
     private final long heartbeatIntervalMillis;
     private final long heartbeatTimeoutMillis;
     private final long backoffMillis;
@@ -55,6 +56,7 @@ public final class PhoenixfireConfiguration {
         this.forkCount = b.forkCount;
         this.maxAttempts = b.maxAttempts;
         this.rerunFailingTestsCount = b.rerunFailingTestsCount;
+        this.sharedForkPoolMaxPasses = b.sharedForkPoolMaxPasses;
         this.heartbeatIntervalMillis = b.heartbeatIntervalMillis;
         this.heartbeatTimeoutMillis = b.heartbeatTimeoutMillis;
         this.backoffMillis = b.backoffMillis;
@@ -112,6 +114,15 @@ public final class PhoenixfireConfiguration {
 
     public int rerunFailingTestsCount() {
         return rerunFailingTestsCount;
+    }
+
+    /**
+     * Number of attempts allowed at {@link IsolationLevel#SHARED_FORK_POOL} before an infrastructure
+     * failure escalates to an isolated fork. {@code 1} (default) escalates on the first shared-pool
+     * crash; higher values resume the victims in a fresh shared-pool fork that many times first.
+     */
+    public int sharedForkPoolMaxPasses() {
+        return sharedForkPoolMaxPasses;
     }
 
     public long heartbeatIntervalMillis() {
@@ -186,6 +197,7 @@ public final class PhoenixfireConfiguration {
         private int forkCount = 1;
         private int maxAttempts = 3;
         private int rerunFailingTestsCount = 0;
+        private int sharedForkPoolMaxPasses = 1;
         private long heartbeatIntervalMillis = 2_000L;
         private long heartbeatTimeoutMillis = 30_000L;
         private long backoffMillis = 0L;
@@ -255,6 +267,11 @@ public final class PhoenixfireConfiguration {
 
         public Builder rerunFailingTestsCount(int rerunFailingTestsCount) {
             this.rerunFailingTestsCount = Math.max(0, rerunFailingTestsCount);
+            return this;
+        }
+
+        public Builder sharedForkPoolMaxPasses(int sharedForkPoolMaxPasses) {
+            this.sharedForkPoolMaxPasses = Math.max(1, sharedForkPoolMaxPasses);
             return this;
         }
 

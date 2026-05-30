@@ -22,6 +22,6 @@ public final class RetryPolicies {
             return custom;
         }
         return new DefaultRetryPolicy(config.maxAttempts(), config.rerunFailingTestsCount(),
-                config.backoffMillis(), config.escalationLadder());
+                config.backoffMillis(), config.escalationLadder(), config.sharedForkPoolMaxPasses());
     }
 }

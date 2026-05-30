@@ -156,6 +156,21 @@ Phoenixfire-specific: `maxAttempts`, `heartbeatInterval`, `heartbeatTimeout`, `b
 `escalationLadder` (list of `IsolationLevel` names), `journalEnabled`, `phoenixfire.reportsDirectory`,
 `failOnFlakyTests`.
 
+### Shared-pool resume before isolating (`sharedForkPoolMaxPasses`)
+
+By default a shared-pool crash escalates straight to an isolated fork. Set `sharedForkPoolMaxPasses`
+(default `1`) higher to treat an early crash as possibly transient and **resume the affected tests in a
+fresh shared-pool fork** that many times before paying for isolation:
+
+```bash
+mvn test -Dphoenixfire.sharedForkPoolMaxPasses=2
+```
+
+This is the "run in a shared JVM; if a fork dies, restart where it left off; then, only if it keeps
+dying, fall back to isolated JVMs (`reuseForks=false`)" workflow. The resumed fork is always a
+brand-new JVM (the poisoned one is dead), and the whole sequence stays bounded by `maxAttempts`. With
+the default `1`, behaviour is unchanged: escalate on the first shared-pool crash.
+
 ### Failure semantics (crash-then-recover)
 
 By default, the build fails **only** when a test never recovers - i.e. it crashes or fails on its
