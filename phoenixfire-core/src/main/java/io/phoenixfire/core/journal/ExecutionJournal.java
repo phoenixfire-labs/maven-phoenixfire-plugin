@@ -30,10 +30,11 @@ import java.util.concurrent.locks.ReentrantLock;
 /**
  * Authoritative, in-memory execution state for a Phoenixfire run.
  *
- * <p>The journal is the single source of truth: forked JVMs are disposable and may die at any time,
- * so all durable state lives here in the controller. State transitions are validated against the
- * per-test state machine, and every mutation is optionally appended to a crash-safe NDJSON event
- * log so that partial progress survives even a controller crash (enabling within-run resume).
+ * <p>The journal is the single source of truth while the controller (Maven JVM) is running: forked
+ * JVMs are disposable and may die at any time, but orchestration state lives here. State transitions
+ * are validated against the per-test state machine. When enabled, each mutation is also appended to
+ * {@code journal.ndjson} as an audit timeline (forensics, ordering analysis); that file is not read
+ * back to continue a run, and a new invocation truncates it.
  */
 public final class ExecutionJournal {
 
@@ -50,7 +51,7 @@ public final class ExecutionJournal {
         this.log = log;
     }
 
-    /** Enable crash-safe NDJSON journaling to {@code journalPath}. Failures are non-fatal. */
+    /** Enable append-only NDJSON audit logging to {@code journalPath}. Failures are non-fatal. */
     public void enableJournalFile(Path journalPath) {
         lock.lock();
         try {

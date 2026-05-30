@@ -119,7 +119,7 @@ public final class PhoenixfireConfiguration {
     /**
      * Number of attempts allowed at {@link IsolationLevel#SHARED_FORK_POOL} before an infrastructure
      * failure escalates to an isolated fork. {@code 1} (default) escalates on the first shared-pool
-     * crash; higher values resume the victims in a fresh shared-pool fork that many times first.
+     * crash; higher values retry the victims in a fresh shared-pool fork that many times first.
      */
     public int sharedForkPoolMaxPasses() {
         return sharedForkPoolMaxPasses;

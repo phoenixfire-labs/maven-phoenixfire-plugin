@@ -82,7 +82,7 @@ jobs:
         run: mvn -B -ntp versions:set-property -Dproperty=revision -DnewVersion=${{ steps.version.outputs.version }} -DgenerateBackupPoms=false
 
       - name: Build, test, and deploy
-        run: mvn -B -ntp clean deploy -Prun-its
+        run: mvn -B -ntp clean deploy -Pgithub-packages -Prun-its
 
   bump-snapshot:
     name: Bump main to next SNAPSHOT

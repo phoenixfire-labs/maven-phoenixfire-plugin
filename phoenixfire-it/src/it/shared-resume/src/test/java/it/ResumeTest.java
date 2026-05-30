@@ -9,8 +9,8 @@ import java.nio.file.Paths;
 
 /**
  * Hard-crashes the forked JVM on the first attempt, then passes. With
- * {@code sharedForkPoolMaxPasses=2}, Phoenixfire must resume this test in a fresh SHARED_FORK_POOL
- * fork (not escalate to FRESH_FORK); on the resume the marker exists, so it passes at the shared level.
+ * {@code sharedForkPoolMaxPasses=2}, Phoenixfire must retry this test in a fresh SHARED_FORK_POOL
+ * fork (not escalate to FRESH_FORK); on the retry the marker exists, so it passes at the shared level.
  */
 class ResumeTest {
 

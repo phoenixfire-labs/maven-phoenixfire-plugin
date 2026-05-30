@@ -18,8 +18,9 @@ is restarting terminated forks with configurable retry logic and more.
 
 ## How it works
 
-- **Controller owns the truth.** All durable state lives in the controller (the Maven JVM) in an
-  execution journal. Forks are disposable workers.
+- **Controller owns the truth.** While a Maven goal is running, all orchestration state lives in the
+  controller (in-memory execution journal). Forks are disposable workers. Optional `journal.ndjson`
+  is an append-only audit log for that run, not a checkpoint to resume a failed build.
 - **Dedicated IPC channel.** Each fork connects back over a loopback socket and streams per-test
   lifecycle events plus periodic heartbeats (NDJSON). Control signals are therefore immune to test
   code writing to `System.out`/`System.err`.
@@ -50,7 +51,7 @@ is restarting terminated forks with configurable retry logic and more.
 ### JDK 17 vs 21 in CI
 
 CI builds and tests on both JDK 17 and 21; **publish** builds once on JDK 17. There is a single set
-of published artifacts (`io.phoenixfire:*`), compiled with `maven.compiler.release` **17** (Java 17
+of published artifacts (`io.github.benmanifold:*`), compiled with `maven.compiler.release` **17** (Java 17
 bytecode). You do **not** publish separate coordinates per JDK.
 
 - **Consumer on JDK 17** — supported (baseline).
@@ -86,9 +87,9 @@ Disable the built-in Surefire/Failsafe executions and bind Phoenixfire to `test`
 
     <!-- Run tests with Phoenixfire instead. -->
     <plugin>
-      <groupId>io.phoenixfire</groupId>
+      <groupId>io.github.benmanifold</groupId>
       <artifactId>phoenixfire-maven-plugin</artifactId>
-      <version>0.1.0-SNAPSHOT</version>
+      <version>0.1.0</version>
       <executions>
         <execution>
           <id>phoenixfire-test</id>
@@ -173,20 +174,22 @@ Phoenixfire-specific: `maxAttempts`, `heartbeatInterval`, `heartbeatTimeout`, `b
 `escalationLadder` (list of `IsolationLevel` names), `journalEnabled`, `phoenixfire.reportsDirectory`,
 `failOnFlakyTests`.
 
-### Shared-pool resume before isolating (`sharedForkPoolMaxPasses`)
+### Shared-pool retry before isolating (`sharedForkPoolMaxPasses`)
 
-By default a shared-pool crash escalates straight to an isolated fork. Set `sharedForkPoolMaxPasses`
-(default `1`) higher to treat an early crash as possibly transient and **resume the affected tests in a
-fresh shared-pool fork** that many times before paying for isolation:
+Within a **single** `mvn test` / `mvn verify` invocation (not a failed CI job replay), Phoenixfire can
+retry tests after a shared-pool fork dies. By default a shared-pool crash escalates straight to an
+isolated fork. Set `sharedForkPoolMaxPasses` (default `1`) higher to treat an early crash as possibly
+transient and **retry the affected tests in a fresh shared-pool fork** that many times before paying
+for isolation:
 
 ```bash
 mvn test -Dphoenixfire.sharedForkPoolMaxPasses=2
 ```
 
 This is the "run in a shared JVM; if a fork dies, restart where it left off; then, only if it keeps
-dying, fall back to isolated JVMs (`reuseForks=false`)" workflow. The resumed fork is always a
-brand-new JVM (the poisoned one is dead), and the whole sequence stays bounded by `maxAttempts`. With
-the default `1`, behaviour is unchanged: escalate on the first shared-pool crash.
+dying, fall back to isolated JVMs (`reuseForks=false`)" workflow. Each retry uses a brand-new JVM (the
+poisoned one is dead), and the whole sequence stays bounded by `maxAttempts`. With the default `1`,
+behaviour is unchanged: escalate on the first shared-pool crash.
 
 When a fork **crashes or exits abnormally**, every non-passing test in that fork (including assertion
 failures that ran before the crash) is retried on the same path: another shared pass if
@@ -220,7 +223,8 @@ Written to `target/phoenixfire-reports` (unit) / `target/phoenixfire-it-reports`
 - `TEST-<ClassName>.xml` - Surefire-compatible JUnit XML.
 - `phoenixfire-report.json` - native audit report (run envelope, per-test attempts and escalation path).
 - `phoenixfire-facts.jsonl` - vendor-agnostic JSON Lines "fact table" for downstream analytics (see below).
-- `journal.ndjson` - crash-safe append-only event log (when `journalEnabled` is true).
+- `journal.ndjson` - append-only audit timeline for the run (`RUNNING`, outcomes, retries; when
+  `journalEnabled` is true). Not replayed on the next Maven invocation.
 - `forks/<forkId>.log` - merged stdout/stderr per fork (diagnostic tails on failure).
 
 ### Run envelope and the JSON Lines fact table
@@ -256,10 +260,29 @@ tool can slice without a join. Notable fields:
 - `exitCode`, `failureMode`, `failureSignature` - crash diagnostics; the signature clusters
   "the same crash" across attempts and runs.
 
+## Using from Maven Central
+
+Released versions are published under **`io.github.benmanifold`** (no extra repository or PAT).
+Use a release version from [Maven Central](https://central.sonatype.com/search?q=io.github.benmanifold+phoenixfire):
+
+```xml
+<plugin>
+  <groupId>io.github.benmanifold</groupId>
+  <artifactId>phoenixfire-maven-plugin</artifactId>
+  <version>0.1.0</version>
+</plugin>
+```
+
+SNAPSHOTs are not on Central; use GitHub Packages below while iterating on `main`.
+
+One-time publisher setup (namespace, GPG, Sonatype token): see [docs/MAVEN-CENTRAL.md](docs/MAVEN-CENTRAL.md).
+
+To trial on an existing corporate multi-module project: [docs/TRY-IN-ENTERPRISE.md](docs/TRY-IN-ENTERPRISE.md).
+
 ## Using from GitHub Packages
 
-Artifacts are published to [GitHub Packages](https://github.com/BenManifold/maven-phoenixfire-plugin/packages)
-for this repository (`io.phoenixfire:*`).
+Artifacts are also published to [GitHub Packages](https://github.com/BenManifold/maven-phoenixfire-plugin/packages)
+for this repository (`io.github.benmanifold:*`). Useful for **SNAPSHOT** builds before a Central release.
 
 Add the repository and authenticate (a [classic PAT](https://github.com/settings/tokens) or fine-grained
 token with `read:packages`, or `GITHUB_TOKEN` in CI) with server id `github`:
@@ -297,9 +320,9 @@ Then depend on a released version, for example:
 
 ```xml
 <plugin>
-  <groupId>io.phoenixfire</groupId>
+  <groupId>io.github.benmanifold</groupId>
   <artifactId>phoenixfire-maven-plugin</artifactId>
-  <version>0.1.0</version>
+  <version>0.1.0-SNAPSHOT</version>
 </plugin>
 ```
 
@@ -315,14 +338,16 @@ not a manual edit at release time.
 2. Choose tag **`v0.1.0`** (with `v` prefix) targeting `main`.
 3. Publish the release.
 
-The **Publish to GitHub Packages** workflow then:
+On release, two workflows run:
 
-1. Deploys **`x.y.z`** to GitHub Packages (consumers use that coordinate, not `-SNAPSHOT`).
-2. Commits to **`main`** the next development version: **`x.y.z+1-SNAPSHOT`** (patch + 1 after
-   `x.y.z`). Example: after `0.2.0` → `0.2.1-SNAPSHOT`.
+1. **Publish to Maven Central** (`.github/workflows/publish-central.yml`) — primary for enterprise
+   consumers; coordinate `io.github.benmanifold:phoenixfire-maven-plugin:x.y.z`.
+2. **Publish to GitHub Packages** (`.github/workflows/publish.yml`) — same version to GitHub Packages.
 
-You can also push a tag alone (`git tag v0.1.0 && git push origin v0.1.0`) or run the workflow
-manually with a version input (`.github/workflows/publish.yml`).
+Both then bump **`main`** to **`x.y.z+1-SNAPSHOT`** (via `publish.yml`). Example: after `0.2.0` → `0.2.1-SNAPSHOT`.
+
+You can also push a tag alone (`git tag v0.1.0 && git push origin v0.1.0`) or run the workflows
+manually with a version input.
 
 ### SNAPSHOT builds for testing
 
@@ -344,8 +369,11 @@ Both publish workflows fail fast with instructions if the secret is missing.
 
 `phoenixfire-it` is not published (`maven.deploy.skip`).
 
-Local deploy: same `github` server in `~/.m2/settings.xml` (`username` = your GitHub user,
-`password` = a PAT with `write:packages`), then `mvn -B -ntp clean deploy -Prun-its`.
+Local deploy to GitHub Packages: `mvn -B -ntp clean deploy -Pgithub-packages -Prun-its` with the
+`github` server in `~/.m2/settings.xml`.
+
+Local deploy to Maven Central: GPG + `central` server in `~/.m2/settings.xml`, then
+`mvn -B -ntp clean deploy -Pcentral -Prun-its` (release version only, not `-SNAPSHOT`).
 
 ## Status
 

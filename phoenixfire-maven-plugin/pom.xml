@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>io.phoenixfire</groupId>
+        <groupId>io.github.benmanifold</groupId>
         <artifactId>phoenixfire</artifactId>
         <version>${revision}</version>
     </parent>
@@ -21,16 +21,16 @@
 
     <dependencies>
         <dependency>
-            <groupId>io.phoenixfire</groupId>
+            <groupId>io.github.benmanifold</groupId>
             <artifactId>phoenixfire-core</artifactId>
         </dependency>
         <dependency>
-            <groupId>io.phoenixfire</groupId>
+            <groupId>io.github.benmanifold</groupId>
             <artifactId>phoenixfire-api</artifactId>
         </dependency>
         <!-- Shipped so the controller can place them on the forked test classpath. -->
         <dependency>
-            <groupId>io.phoenixfire</groupId>
+            <groupId>io.github.benmanifold</groupId>
             <artifactId>phoenixfire-fork-runner</artifactId>
         </dependency>
         <dependency>

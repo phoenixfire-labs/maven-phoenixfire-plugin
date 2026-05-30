@@ -292,7 +292,7 @@ public final class ForkSupervisor {
             }
             started.add(id);
             inFlight = id;
-            // Live, crash-safe progress: mark RUNNING the instant the fork begins the test.
+            // Live progress in the in-memory journal (and audit log when enabled).
             journal.markRunning(id, forkId);
         }
 

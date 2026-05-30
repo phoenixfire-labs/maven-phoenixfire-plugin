@@ -102,7 +102,7 @@ public abstract class AbstractPhoenixfireMojo extends AbstractMojo {
     /**
      * Attempts allowed in the shared fork pool before an infrastructure failure (crash/hang/OOM)
      * escalates to an isolated fork. The default {@code 1} escalates on the first shared-pool crash;
-     * a higher value resumes the affected tests in a fresh shared-pool fork that many times first -
+     * a higher value retries the affected tests in a fresh shared-pool fork that many times first -
      * the "run in a shared JVM, restart where the dead fork left off, then isolate" workflow. Bounded
      * by {@code maxAttempts}.
      */
@@ -125,7 +125,7 @@ public abstract class AbstractPhoenixfireMojo extends AbstractMojo {
     @Parameter
     protected List<String> escalationLadder = new ArrayList<>();
 
-    /** Write the crash-safe NDJSON execution journal. */
+    /** Write an append-only NDJSON audit log of execution events ({@code journal.ndjson}). */
     @Parameter(property = "phoenixfire.journalEnabled", defaultValue = "true")
     protected boolean journalEnabled;
 
@@ -301,9 +301,7 @@ public abstract class AbstractPhoenixfireMojo extends AbstractMojo {
         // Ensure the fork runner, API and JUnit Platform launcher are present in the fork.
         if (pluginArtifacts != null) {
             for (Artifact artifact : pluginArtifacts) {
-                String groupId = artifact.getGroupId();
-                if (("io.phoenixfire".equals(groupId) || "org.junit.platform".equals(groupId))
-                        && artifact.getFile() != null) {
+                if (isForkClasspathPluginArtifact(artifact)) {
                     String path = artifact.getFile().getAbsolutePath();
                     if (!classpath.contains(path)) {
                         classpath.add(path);
@@ -312,6 +310,15 @@ public abstract class AbstractPhoenixfireMojo extends AbstractMojo {
             }
         }
         return classpath;
+    }
+
+    /** Phoenixfire modules and JUnit Platform launcher jars required in every test fork. */
+    private static boolean isForkClasspathPluginArtifact(Artifact artifact) {
+        if (artifact.getFile() == null) {
+            return false;
+        }
+        String groupId = artifact.getGroupId();
+        return "io.github.benmanifold".equals(groupId) || "org.junit.platform".equals(groupId);
     }
 
     /** Reads include/exclude patterns from a file: one per line, blank lines and {@code #} comments ignored. */

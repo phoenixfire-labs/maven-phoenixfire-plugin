@@ -1,4 +1,4 @@
-// Verifies the sharedForkPoolMaxPasses resume workflow: a test that crashes once in the shared pool
+// Verifies the sharedForkPoolMaxPasses retry workflow: a test that crashes once in the shared pool
 // is restarted in a FRESH shared-pool fork (not escalated to an isolated fork) and then passes.
 
 import groovy.json.JsonSlurper
@@ -28,9 +28,9 @@ assert t.attempts.every { it.isolationLevel == 'SHARED_FORK_POOL' } : "No attemp
 File facts = new File(reportsDir, "phoenixfire-facts.jsonl")
 assert facts.isFile() : "JSON Lines fact table was not produced"
 def attempts = facts.readLines().findAll { it.contains('"type":"test_attempt"') }.collect { slurper.parseText(it) }
-assert attempts.size() == 2 : "Expected exactly two attempts (crash then shared resume)"
+assert attempts.size() == 2 : "Expected exactly two attempts (crash then shared-pool retry)"
 assert attempts.every { it.isolation == 'SHARED_FORK_POOL' } : "Both attempts must be in the shared pool"
 assert attempts.any { it.outcome == 'CRASHED' } : "First attempt should be a crash"
-assert attempts.any { it.outcome == 'PASSED' } : "Resumed attempt should pass"
+assert attempts.any { it.outcome == 'PASSED' } : "Retry attempt should pass"
 
 return true

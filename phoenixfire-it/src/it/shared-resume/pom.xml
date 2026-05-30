@@ -35,7 +35,7 @@
             </plugin>
 
             <plugin>
-                <groupId>io.phoenixfire</groupId>
+                <groupId>io.github.benmanifold</groupId>
                 <artifactId>phoenixfire-maven-plugin</artifactId>
                 <version>@project.version@</version>
                 <executions>
@@ -51,7 +51,7 @@
                     <forkCount>1</forkCount>
                     <maxAttempts>3</maxAttempts>
                     <heartbeatTimeout>20000</heartbeatTimeout>
-                    <!-- Allow one shared-pool resume before isolating. The test crashes once then
+                    <!-- Allow one shared-pool retry before isolating. The test crashes once then
                          passes, so it must recover at SHARED_FORK_POOL (a fresh shared fork) WITHOUT
                          escalating to FRESH_FORK. -->
                     <sharedForkPoolMaxPasses>2</sharedForkPoolMaxPasses>

@@ -36,7 +36,7 @@
             </plugin>
 
             <plugin>
-                <groupId>io.phoenixfire</groupId>
+                <groupId>io.github.benmanifold</groupId>
                 <artifactId>phoenixfire-maven-plugin</artifactId>
                 <version>@project.version@</version>
                 <executions>

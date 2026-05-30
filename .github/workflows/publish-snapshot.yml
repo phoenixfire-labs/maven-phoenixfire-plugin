@@ -57,4 +57,4 @@ jobs:
           fi
 
       - name: Build, test, and deploy SNAPSHOT
-        run: mvn -B -ntp clean deploy -Prun-its
+        run: mvn -B -ntp clean deploy -Pgithub-packages -Prun-its

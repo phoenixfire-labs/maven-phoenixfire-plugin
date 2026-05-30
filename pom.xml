@@ -4,7 +4,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>io.phoenixfire</groupId>
+    <groupId>io.github.benmanifold</groupId>
     <artifactId>phoenixfire</artifactId>
     <version>${revision}</version>
     <packaging>pom</packaging>
@@ -12,6 +12,21 @@
     <name>Phoenixfire</name>
     <description>Fault-tolerant test orchestration for Maven: a resilient supervisory replacement for Surefire/Failsafe.</description>
     <url>https://github.com/BenManifold/maven-phoenixfire-plugin</url>
+
+    <licenses>
+        <license>
+            <name>Apache-2.0</name>
+            <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
+    <developers>
+        <developer>
+            <name>Ben Manifold</name>
+            <url>https://github.com/BenManifold</url>
+        </developer>
+    </developers>
 
     <scm>
         <connection>scm:git:https://github.com/BenManifold/maven-phoenixfire-plugin.git</connection>
@@ -48,38 +63,29 @@
         <maven-invoker-plugin.version>3.6.1</maven-invoker-plugin.version>
         <flatten-maven-plugin.version>1.6.0</flatten-maven-plugin.version>
         <versions-maven-plugin.version>2.17.1</versions-maven-plugin.version>
+        <maven-source-plugin.version>3.3.1</maven-source-plugin.version>
+        <maven-javadoc-plugin.version>3.10.2</maven-javadoc-plugin.version>
+        <maven-gpg-plugin.version>3.2.7</maven-gpg-plugin.version>
+        <central-publishing-maven-plugin.version>0.9.0</central-publishing-maven-plugin.version>
 
         <!-- GitHub Packages registry for this repository (override for forks). -->
         <github.repository>BenManifold/maven-phoenixfire-plugin</github.repository>
     </properties>
 
-    <distributionManagement>
-        <repository>
-            <id>github</id>
-            <name>GitHub Packages</name>
-            <url>https://maven.pkg.github.com/${github.repository}</url>
-        </repository>
-        <snapshotRepository>
-            <id>github</id>
-            <name>GitHub Packages</name>
-            <url>https://maven.pkg.github.com/${github.repository}</url>
-        </snapshotRepository>
-    </distributionManagement>
-
     <dependencyManagement>
         <dependencies>
             <dependency>
-                <groupId>io.phoenixfire</groupId>
+                <groupId>io.github.benmanifold</groupId>
                 <artifactId>phoenixfire-api</artifactId>
                 <version>${phoenixfire.version}</version>
             </dependency>
             <dependency>
-                <groupId>io.phoenixfire</groupId>
+                <groupId>io.github.benmanifold</groupId>
                 <artifactId>phoenixfire-fork-runner</artifactId>
                 <version>${phoenixfire.version}</version>
             </dependency>
             <dependency>
-                <groupId>io.phoenixfire</groupId>
+                <groupId>io.github.benmanifold</groupId>
                 <artifactId>phoenixfire-core</artifactId>
                 <version>${phoenixfire.version}</version>
             </dependency>
@@ -132,6 +138,26 @@
                     <artifactId>versions-maven-plugin</artifactId>
                     <version>${versions-maven-plugin.version}</version>
                 </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-source-plugin</artifactId>
+                    <version>${maven-source-plugin.version}</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-javadoc-plugin</artifactId>
+                    <version>${maven-javadoc-plugin.version}</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-gpg-plugin</artifactId>
+                    <version>${maven-gpg-plugin.version}</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.sonatype.central</groupId>
+                    <artifactId>central-publishing-maven-plugin</artifactId>
+                    <version>${central-publishing-maven-plugin.version}</version>
+                </plugin>
             </plugins>
         </pluginManagement>
         <plugins>
@@ -162,4 +188,84 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <!-- GitHub Packages deploy (publish.yml / publish-snapshot.yml). -->
+        <profile>
+            <id>github-packages</id>
+            <distributionManagement>
+                <repository>
+                    <id>github</id>
+                    <name>GitHub Packages</name>
+                    <url>https://maven.pkg.github.com/${github.repository}</url>
+                </repository>
+                <snapshotRepository>
+                    <id>github</id>
+                    <name>GitHub Packages</name>
+                    <url>https://maven.pkg.github.com/${github.repository}</url>
+                </snapshotRepository>
+            </distributionManagement>
+        </profile>
+
+        <!-- Maven Central via https://central.sonatype.com (namespace io.github.benmanifold). -->
+        <profile>
+            <id>central</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-source-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>attach-sources</id>
+                                <goals>
+                                    <goal>jar-no-fork</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-javadoc-plugin</artifactId>
+                        <configuration>
+                            <doclint>none</doclint>
+                            <quiet>true</quiet>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <id>attach-javadocs</id>
+                                <goals>
+                                    <goal>jar</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-gpg-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>sign-artifacts</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>sign</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.sonatype.central</groupId>
+                        <artifactId>central-publishing-maven-plugin</artifactId>
+                        <extensions>true</extensions>
+                        <configuration>
+                            <publishingServerId>central</publishingServerId>
+                            <autoPublish>true</autoPublish>
+                            <waitUntil>published</waitUntil>
+                            <deploymentName>phoenixfire-${project.version}</deploymentName>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>
