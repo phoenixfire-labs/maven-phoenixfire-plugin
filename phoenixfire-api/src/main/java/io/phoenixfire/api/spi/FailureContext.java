@@ -14,17 +14,29 @@ public final class FailureContext {
     private final IsolationLevel currentLevel;
     private final int attemptsSoFar;
     private final int exitCode;
+    /** True when the fork that ran this test did not exit cleanly (crash, hang, abnormal exit). */
+    private final boolean forkTerminatedAbnormally;
 
     public FailureContext(TestState outcome,
                           FailureMode failureMode,
                           IsolationLevel currentLevel,
                           int attemptsSoFar,
                           int exitCode) {
+        this(outcome, failureMode, currentLevel, attemptsSoFar, exitCode, false);
+    }
+
+    public FailureContext(TestState outcome,
+                          FailureMode failureMode,
+                          IsolationLevel currentLevel,
+                          int attemptsSoFar,
+                          int exitCode,
+                          boolean forkTerminatedAbnormally) {
         this.outcome = outcome;
         this.failureMode = failureMode;
         this.currentLevel = currentLevel;
         this.attemptsSoFar = attemptsSoFar;
         this.exitCode = exitCode;
+        this.forkTerminatedAbnormally = forkTerminatedAbnormally;
     }
 
     public TestState outcome() {
@@ -45,5 +57,10 @@ public final class FailureContext {
 
     public int exitCode() {
         return exitCode;
+    }
+
+    /** True when the containing fork crashed or otherwise terminated abnormally. */
+    public boolean forkTerminatedAbnormally() {
+        return forkTerminatedAbnormally;
     }
 }

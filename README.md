@@ -171,6 +171,11 @@ dying, fall back to isolated JVMs (`reuseForks=false`)" workflow. The resumed fo
 brand-new JVM (the poisoned one is dead), and the whole sequence stays bounded by `maxAttempts`. With
 the default `1`, behaviour is unchanged: escalate on the first shared-pool crash.
 
+When a fork **crashes or exits abnormally**, every non-passing test in that fork (including assertion
+failures that ran before the crash) is retried on the same path: another shared pass if
+`sharedForkPoolMaxPasses` allows, then isolated forks. A failure in a **clean** fork is only re-run at
+the same level (`rerunFailingTestsCount`, Surefire parity) and is not escalated.
+
 ### Failure semantics (crash-then-recover)
 
 By default, the build fails **only** when a test never recovers - i.e. it crashes or fails on its

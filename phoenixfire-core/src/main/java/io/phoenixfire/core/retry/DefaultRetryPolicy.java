@@ -14,15 +14,13 @@ import java.util.List;
  * Default retry/escalation policy.
  *
  * <ul>
- *   <li><b>Infrastructure failures</b> (crash, hang, OOM, abnormal exit) escalate isolation along
- *       the configured ladder. By default a crashed test is <em>never</em> retried in the shared pool
- *       that poisoned it - it jumps to at least {@link IsolationLevel#FRESH_FORK}. When
- *       {@code sharedForkPoolMaxPasses} &gt; 1, the victims are first resumed in a <em>fresh</em>
- *       shared-pool fork up to that many shared attempts (treating an early crash as possibly
- *       transient) before paying for isolation.</li>
- *   <li><b>Deterministic assertion failures</b> are re-run at the same isolation level up to
- *       {@code rerunFailingTestsCount} times (Surefire parity).</li>
- *   <li>All paths are bounded by {@code maxAttempts} to guarantee termination.</li>
+ *   <li><b>Fork incidents</b> (crash, hang, OOM, abnormal exit, or any test failure in a fork that
+ *       did not exit cleanly) are retried along the isolation ladder. At {@link IsolationLevel#SHARED_FORK_POOL},
+ *       {@code sharedForkPoolMaxPasses} controls how many shared-pool attempts are allowed before
+ *       escalating to a clean isolated fork.</li>
+ *   <li><b>Clean-fork assertion failures</b> are only re-run at the same level up to
+ *       {@code rerunFailingTestsCount} (Surefire parity).</li>
+ *   <li>All paths are bounded by {@code maxAttempts}.</li>
  * </ul>
  */
 public final class DefaultRetryPolicy implements RetryPolicy {
@@ -51,26 +49,29 @@ public final class DefaultRetryPolicy implements RetryPolicy {
             return RetryDecision.noRetry();
         }
 
-        if (context.failureMode().isInfrastructureFailure()) {
-            // Optionally resume in a fresh shared-pool fork before escalating, treating an early crash
-            // as possibly transient. The poisoned fork is dead; this is a brand-new shared-pool JVM.
+        if (isForkIncident(context)) {
             if (context.currentLevel() == IsolationLevel.SHARED_FORK_POOL
                     && countAttemptsAt(record, IsolationLevel.SHARED_FORK_POOL) < sharedForkPoolMaxPasses) {
                 return RetryDecision.retryAt(IsolationLevel.SHARED_FORK_POOL, backoffMillis);
             }
             IsolationLevel next = escalate(context.currentLevel());
-            // Never re-run a crashed test in the shared pool once shared passes are exhausted.
             if (next == IsolationLevel.SHARED_FORK_POOL) {
                 next = IsolationLevel.FRESH_FORK;
             }
             return RetryDecision.retryAt(next, backoffMillis);
         }
 
-        // Deterministic test failure: re-run at the same level up to the configured count.
-        if (context.attemptsSoFar() <= rerunFailingTestsCount && context.outcome() == TestState.FAILED) {
+        if (context.outcome() == TestState.FAILED
+                && context.attemptsSoFar() <= rerunFailingTestsCount) {
             return RetryDecision.retryAt(context.currentLevel(), backoffMillis);
         }
         return RetryDecision.noRetry();
+    }
+
+    /** Infrastructure failure, or a test failure in a fork that crashed or exited abnormally. */
+    private static boolean isForkIncident(FailureContext context) {
+        return context.failureMode().isInfrastructureFailure()
+                || (context.outcome() == TestState.FAILED && context.forkTerminatedAbnormally());
     }
 
     private static int countAttemptsAt(TestRecord record, IsolationLevel level) {

@@ -349,14 +349,14 @@ public final class ExecutionEngine implements AutoCloseable {
                         + " in " + result.forkId() + " at " + unit.isolationLevel()
                         + " (attempt " + attemptNumber + "/" + config.maxAttempts() + ")");
                 backoff = Math.max(backoff, maybeScheduleRetry(testId, unit.isolationLevel(),
-                        outcomeState, failureMode, result.exitCode()));
+                        outcomeState, failureMode, result.exitCode(), !result.clean()));
             }
         }
         return backoff;
     }
 
     private long maybeScheduleRetry(TestId testId, IsolationLevel currentLevel, TestState outcome,
-                                    FailureMode failureMode, int exitCode) {
+                                    FailureMode failureMode, int exitCode, boolean forkTerminatedAbnormally) {
         TestRecord record = journal.record(testId);
         // Hard global cap guarantees termination regardless of the (possibly custom) policy.
         if (record.attemptCount() >= config.maxAttempts()) {
@@ -365,7 +365,7 @@ public final class ExecutionEngine implements AutoCloseable {
             return 0L;
         }
         FailureContext context = new FailureContext(outcome, failureMode, currentLevel,
-                record.attemptCount(), exitCode);
+                record.attemptCount(), exitCode, forkTerminatedAbnormally);
         RetryDecision decision = retryPolicy.decide(record, context);
         if (decision.shouldRetry()) {
             journal.scheduleRetry(testId, decision.nextLevel());

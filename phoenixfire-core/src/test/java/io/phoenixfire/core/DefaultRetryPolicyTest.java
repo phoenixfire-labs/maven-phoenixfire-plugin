@@ -52,7 +52,6 @@ class DefaultRetryPolicyTest {
     @Test
     void sharedCrashResumesInSharedPoolWhilePassesRemain() {
         DefaultRetryPolicy policy = new DefaultRetryPolicy(5, 0, 0L, LADDER, 2);
-        // One shared-pool attempt so far (the current crash); a second shared pass is still allowed.
         TestRecord record = recordWithAttempts(1, TestState.CRASHED, FailureMode.SIGKILL);
 
         RetryDecision decision = policy.decide(record,
@@ -65,7 +64,6 @@ class DefaultRetryPolicyTest {
     @Test
     void sharedCrashEscalatesAfterPassesExhausted() {
         DefaultRetryPolicy policy = new DefaultRetryPolicy(5, 0, 0L, LADDER, 2);
-        // Two shared-pool attempts already used; the next infrastructure failure must isolate.
         TestRecord record = recordWithAttempts(2, TestState.CRASHED, FailureMode.SIGKILL);
 
         RetryDecision decision = policy.decide(record,
@@ -73,6 +71,31 @@ class DefaultRetryPolicyTest {
 
         assertTrue(decision.shouldRetry());
         assertEquals(IsolationLevel.FRESH_FORK, decision.nextLevel());
+    }
+
+    @Test
+    void failureInCrashedForkEscalatesToIsolation() {
+        DefaultRetryPolicy policy = new DefaultRetryPolicy(5, 0, 0L, LADDER, 1);
+        TestRecord record = recordWithAttempts(1, TestState.FAILED, FailureMode.ASSERTION_FAILURE);
+
+        RetryDecision decision = policy.decide(record,
+                new FailureContext(TestState.FAILED, FailureMode.ASSERTION_FAILURE,
+                        IsolationLevel.SHARED_FORK_POOL, 1, 137, true));
+
+        assertTrue(decision.shouldRetry());
+        assertEquals(IsolationLevel.FRESH_FORK, decision.nextLevel());
+    }
+
+    @Test
+    void failureInCleanForkDoesNotEscalateByDefault() {
+        DefaultRetryPolicy policy = new DefaultRetryPolicy(5, 0, 0L, LADDER, 1);
+        TestRecord record = recordWithAttempts(1, TestState.FAILED, FailureMode.ASSERTION_FAILURE);
+
+        RetryDecision decision = policy.decide(record,
+                new FailureContext(TestState.FAILED, FailureMode.ASSERTION_FAILURE,
+                        IsolationLevel.SHARED_FORK_POOL, 1, 0, false));
+
+        assertFalse(decision.shouldRetry());
     }
 
     @Test
