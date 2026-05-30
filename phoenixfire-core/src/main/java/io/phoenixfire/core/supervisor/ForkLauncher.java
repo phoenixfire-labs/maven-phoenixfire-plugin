@@ -53,10 +53,16 @@ public final class ForkLauncher {
         command.add("-D" + IpcProtocol.PROP_SCAN_ROOTS + "=" + String.join(File.pathSeparator, config.scanRoots()));
         command.add("-Dphoenixfire.heartbeat.interval=" + config.heartbeatIntervalMillis());
 
+        // Unsupported in production: unit tests may set these on the controller JVM only.
+        String simMode = System.getProperty("phoenixfire.sim.mode");
+        if (simMode != null && !simMode.isBlank()) {
+            command.add("-Dphoenixfire.sim.mode=" + simMode);
+        }
+
         // Classpath goes in an @argfile (not on argv) to stay under the OS command-line length limit.
         Path argFile = writeClasspathArgFile(forkId, logFile);
         command.add("@" + argFile);
-        command.add("io.phoenixfire.runner.ForkRunnerMain");
+        command.add(System.getProperty("phoenixfire.fork.main", "io.phoenixfire.runner.ForkRunnerMain"));
 
         ProcessBuilder pb = new ProcessBuilder(command);
         if (config.workingDirectory() != null) {

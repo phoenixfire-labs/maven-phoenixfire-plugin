@@ -1,0 +1,42 @@
+# Code coverage
+
+Phoenixfire enforces **100% line and branch coverage** on production modules via [JaCoCo](https://www.jacoco.org/jacoco/) in the parent POM.
+
+## Scope
+
+| Module | Included in gate |
+|--------|------------------|
+| `phoenixfire-api` | Yes |
+| `phoenixfire-core` | Yes |
+| `phoenixfire-fork-runner` | Yes |
+| `phoenixfire-maven-plugin` | Yes |
+| `phoenixfire-it` | No (Invoker harness only; `jacoco.skip=true`) |
+
+End-to-end Invoker projects under `phoenixfire-it/src/it` exercise the plugin in real Maven builds but are not part of the JaCoCo bundle. Unit tests in the modules above are what drive the gate.
+
+## Local commands
+
+```bash
+# Unit tests + coverage report + 100% check (no Invoker ITs)
+mvn clean verify
+
+# Full CI parity (Invoker ITs + coverage check + install)
+mvn clean verify install -Prun-its
+```
+
+Open the aggregated HTML report:
+
+`target/site/jacoco-aggregate/index.html`
+
+Per-module reports (after `test`):
+
+`phoenixfire-core/target/site/jacoco/index.html` (and sibling modules).
+
+## CI
+
+The [Build workflow](../.github/workflows/build.yml) runs `mvn clean verify install -Prun-its` on JDK 17 and 21. The JaCoCo check runs on both matrix legs. On JDK 17, the workflow uploads `target/site/jacoco-aggregate/` as a build artifact for inspection.
+
+## Notes
+
+- Coverage is **unit-test** coverage in the Maven JVM, not line hits inside forked test workers spawned during Invoker runs.
+- The gate is **100%** on lines and branches for the bundle. If the build fails at `jacoco-check`, open the aggregate report and add or extend tests in the module that shows gaps.

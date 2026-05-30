@@ -18,6 +18,7 @@
     <properties>
         <maven.deploy.skip>true</maven.deploy.skip>
         <maven.install.skip>true</maven.install.skip>
+        <jacoco.skip>true</jacoco.skip>
     </properties>
 
     <!-- Not used for compilation; declared so the reactor builds and installs the plugin first. -->

@@ -207,6 +207,20 @@ fail the build.
 Set `failOnFlakyTests` (`-Dphoenixfire.failOnFlakyTests=true`) to also fail the build on any test
 that needed a retry to pass. Either way, flaky tests are always logged and recorded in the reports.
 
+## Code coverage
+
+JaCoCo enforces **100% line and branch coverage** on `phoenixfire-api`, `phoenixfire-core`,
+`phoenixfire-fork-runner`, and `phoenixfire-maven-plugin` during `verify`. Invoker IT modules are
+out of scope for the gate (they exercise the plugin end-to-end in separate Maven builds).
+
+```bash
+mvn clean verify              # unit tests + coverage check
+mvn clean verify install -Prun-its   # CI parity
+```
+
+Open `target/site/jacoco-aggregate/index.html` after a build. See [docs/COVERAGE.md](docs/COVERAGE.md)
+for scope, CI artifacts, and notes on what the gate does and does not measure.
+
 ## Extensibility (SPI, via `java.util.ServiceLoader`)
 
 Implement and register any of these (classes discovered on the project test classpath):

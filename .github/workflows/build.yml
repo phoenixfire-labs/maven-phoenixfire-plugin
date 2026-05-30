@@ -40,7 +40,16 @@ jobs:
           cache: maven
 
       - name: Build, unit test, and run integration tests
-        run: mvn -B -ntp clean install -Prun-its
+        run: mvn -B -ntp clean verify install -Prun-its
+
+      - name: Upload JaCoCo coverage report
+        if: matrix.java == '17'
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-aggregate-jdk17
+          path: target/site/jacoco-aggregate/
+          if-no-files-found: warn
+          retention-days: 14
 
       - name: Upload test reports
         if: always()

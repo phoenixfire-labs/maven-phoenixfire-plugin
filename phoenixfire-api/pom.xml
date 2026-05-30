@@ -14,4 +14,12 @@
     <name>Phoenixfire API</name>
     <description>Stable model and extension SPIs (isolation strategy, retry policy, failure classifier, report writer) plus the controller/fork IPC contract. Zero external dependencies so it can live safely on the forked test classpath.</description>
 
+    <dependencies>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
 </project>
