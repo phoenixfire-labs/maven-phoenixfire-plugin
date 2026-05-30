@@ -89,6 +89,18 @@ class JsonTest {
         assertThrows(Json.JsonException.class, () -> Json.parse("\"unterminated"));
         assertThrows(Json.JsonException.class, () -> Json.parse("{key:1}"));
         assertThrows(Json.JsonException.class, () -> Json.parse("{\"a\":1,}"));
+        assertThrows(Json.JsonException.class, () -> Json.parse("[1,]"));
+        assertThrows(Json.JsonException.class, () -> Json.parse("{\"a\":1,,}"));
+        assertThrows(Json.JsonException.class, () -> Json.parse("\"bad\\q\""));
+        assertThrows(Json.JsonException.class, () -> Json.parse("{\"n\":}"));
+        assertThrows(NumberFormatException.class, () -> Json.parse("{\"n\":1.2.3}"));
+        assertThrows(NumberFormatException.class, () -> Json.parse("{\"n\":-}"));
+    }
+
+    @Test
+    void parsesIntegerAndLargeLong() {
+        assertEquals(42L, Json.parse("42"));
+        assertEquals(9223372036854775807L, Json.parse("9223372036854775807"));
     }
 
     @Test

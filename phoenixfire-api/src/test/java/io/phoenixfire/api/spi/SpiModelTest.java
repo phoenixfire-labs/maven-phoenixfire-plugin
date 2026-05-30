@@ -33,9 +33,14 @@ class SpiModelTest {
 
     @Test
     void failureContextAndRetryDecision() {
+        FailureContext cleanFork = new FailureContext(
+                TestState.FAILED, FailureMode.ASSERTION_FAILURE, IsolationLevel.SHARED_FORK_POOL, 1, 0);
+        assertFalse(cleanFork.forkTerminatedAbnormally());
+
         FailureContext ctx = new FailureContext(
                 TestState.CRASHED, FailureMode.SIGKILL, IsolationLevel.FRESH_FORK, 1, 137, true);
         assertTrue(ctx.forkTerminatedAbnormally());
+        assertEquals(137, ctx.exitCode());
         assertFalse(RetryDecision.noRetry().shouldRetry());
         RetryDecision retry = RetryDecision.retryAt(IsolationLevel.ONE_FORK_PER_CLASS, -1);
         assertTrue(retry.shouldRetry());

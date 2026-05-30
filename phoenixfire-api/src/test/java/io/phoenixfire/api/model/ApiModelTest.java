@@ -24,7 +24,8 @@ class ApiModelTest {
 
         TestId same = new TestId("uid", "Cls", "disp");
         assertEquals(id, same);
-        assertTrue(id.compareTo(same) == 0);
+        assertEquals(0, id.compareTo(same));
+        assertTrue(id.compareTo(new TestId("zzz", "C", "d")) < 0);
     }
 
     @Test
@@ -52,21 +53,32 @@ class ApiModelTest {
     }
 
     @Test
-    void executionAttemptDefaultsAndDuration() {
+    void executionAttemptFullBuilder() {
         ExecutionAttempt a = ExecutionAttempt.builder()
-                .attemptNumber(1)
-                .outcome(TestState.PASSED)
+                .attemptNumber(2)
+                .isolationLevel(IsolationLevel.FRESH_FORK)
+                .outcome(TestState.FAILED)
+                .failureMode(FailureMode.ASSERTION_FAILURE)
+                .forkId("fork-1")
+                .exitCode(1)
                 .startMillis(100)
-                .endMillis(50)
+                .endMillis(250)
+                .throwableMessage("msg")
+                .throwableStackTrace("stack")
                 .build();
-        assertEquals(FailureMode.NONE, a.failureMode());
-        assertEquals(0L, a.durationMillis());
+        assertEquals(FailureMode.ASSERTION_FAILURE, a.failureMode());
+        assertEquals(150L, a.durationMillis());
+        assertEquals("fork-1", a.forkId());
+        assertEquals("msg", a.throwableMessage());
     }
 
     @Test
-    void testRecordRecoveryAndForkReuse() {
+    void testRecordRecoveryForkReuseAndPackageMutators() {
         TestId id = new TestId("u1", "Cls", "m");
         TestRecord record = new TestRecord(id);
+        record.setTargetLevel(IsolationLevel.ONE_FORK_PER_CLASS);
+        assertEquals(IsolationLevel.ONE_FORK_PER_CLASS, record.targetLevel());
+
         record.internalAddAttempt(ExecutionAttempt.builder()
                 .attemptNumber(1).isolationLevel(IsolationLevel.SHARED_FORK_POOL)
                 .outcome(TestState.FAILED).failureMode(FailureMode.ASSERTION_FAILURE).build());
@@ -74,41 +86,134 @@ class ApiModelTest {
                 .attemptNumber(2).isolationLevel(IsolationLevel.FRESH_FORK)
                 .outcome(TestState.PASSED).build());
         record.internalSetState(TestState.PASSED);
+        record.internalSetLastFailureMode(FailureMode.ASSERTION_FAILURE);
 
         assertTrue(record.recovered());
         assertFalse(record.everCrashed());
         assertEquals(IsolationLevel.SHARED_FORK_POOL, record.firstFailLevel());
         assertEquals(IsolationLevel.FRESH_FORK, record.recoveryLevel());
         assertTrue(record.forkReuseSensitive());
-        assertNull(new TestRecord(new TestId("u2", "C", "d")).lastAttempt());
+        assertEquals(FailureMode.ASSERTION_FAILURE, record.lastFailureMode());
+        assertEquals(2, record.attemptCount());
+        assertEquals(2, record.attempts().size());
+
+        TestRecord crashed = new TestRecord(new TestId("u2", "C", "d"));
+        crashed.internalAddAttempt(ExecutionAttempt.builder()
+                .attemptNumber(1).outcome(TestState.CRASHED).build());
+        assertTrue(crashed.everCrashed());
+        assertFalse(crashed.recovered());
+        assertNull(crashed.recoveryLevel());
+        assertEquals(IsolationLevel.SHARED_FORK_POOL, crashed.firstFailLevel());
+
+        TestRecord notReuseSensitive = new TestRecord(new TestId("u3", "C", "d"));
+        notReuseSensitive.internalAddAttempt(ExecutionAttempt.builder()
+                .attemptNumber(1).isolationLevel(IsolationLevel.FRESH_FORK)
+                .outcome(TestState.FAILED).build());
+        notReuseSensitive.internalAddAttempt(ExecutionAttempt.builder()
+                .attemptNumber(2).isolationLevel(IsolationLevel.FRESH_FORK)
+                .outcome(TestState.PASSED).build());
+        notReuseSensitive.internalSetState(TestState.PASSED);
+        assertFalse(notReuseSensitive.forkReuseSensitive());
+
+        TestRecord viaPackage = new TestRecord(new TestId("u4", "C", "d"));
+        viaPackage.setState(TestState.RUNNING);
+        viaPackage.addAttempt(ExecutionAttempt.builder().attemptNumber(1).outcome(TestState.PASSED).build());
+        viaPackage.setLastFailureMode(FailureMode.NONE);
+        assertEquals(TestState.RUNNING, viaPackage.state());
+        assertNull(new TestRecord(new TestId("u5", "C", "d")).lastAttempt());
     }
 
     @Test
-    void runMetadataBlankNormalization() {
+    void runMetadataBuilderAndGetters() {
         RunMetadata meta = RunMetadata.builder()
-                .gitSha("  ")
-                .labels(Map.of("k", "v"))
+                .gitSha("abc")
+                .gitBranch("main")
+                .gitDirty(true)
+                .ciProvider("github")
+                .ciBuildId("42")
+                .ciBuildUrl("https://ci.example/run/42")
+                .projectGroupId("g")
+                .projectArtifactId("a")
+                .projectVersion("1.0")
+                .labels(Map.of("team", "core"))
                 .build();
-        assertNull(meta.gitSha());
-        assertEquals("v", meta.labels().get("k"));
+        assertEquals("abc", meta.gitSha());
+        assertEquals("main", meta.gitBranch());
+        assertTrue(meta.gitDirty());
+        assertEquals("github", meta.ciProvider());
+        assertEquals("42", meta.ciBuildId());
+        assertEquals("https://ci.example/run/42", meta.ciBuildUrl());
+        assertEquals("g", meta.projectGroupId());
+        assertEquals("a", meta.projectArtifactId());
+        assertEquals("1.0", meta.projectVersion());
+        assertEquals("core", meta.labels().get("team"));
+        assertNull(RunMetadata.builder().gitSha("  ").build().gitSha());
         assertTrue(RunMetadata.empty().labels().isEmpty());
+        assertTrue(RunMetadata.builder().labels(null).build().labels().isEmpty());
     }
 
     @Test
-    void runEnvelopeAndReportModel() {
+    void runEnvelopeBuilderAndGetters() {
+        RunMetadata meta = RunMetadata.builder().gitSha("sha").build();
         RunEnvelope envelope = RunEnvelope.builder()
                 .runId("r1")
+                .host("host")
+                .osName("Linux")
+                .osArch("amd64")
+                .jvm("17")
+                .maxAttempts(3)
+                .escalationLadder(List.of("SHARED_FORK_POOL", "FRESH_FORK"))
+                .forkCount(2)
                 .shardIndex(1)
-                .shardCount(2)
+                .shardCount(4)
+                .metadata(meta)
                 .build();
         assertEquals("r1", envelope.runId());
+        assertEquals("host", envelope.host());
+        assertEquals("Linux", envelope.osName());
+        assertEquals("amd64", envelope.osArch());
+        assertEquals("17", envelope.jvm());
+        assertEquals(3, envelope.maxAttempts());
+        assertEquals(2, envelope.escalationLadder().size());
+        assertEquals(2, envelope.forkCount());
+        assertEquals(1, envelope.shardIndex());
+        assertEquals(4, envelope.shardCount());
+        assertEquals("sha", envelope.metadata().gitSha());
 
-        TestRecord r = new TestRecord(new TestId("u", "C", "t"));
-        r.internalSetState(TestState.FAILED);
-        ReportModel model = new ReportModel(List.of(r), 0, 10, envelope);
+        assertTrue(RunEnvelope.builder().escalationLadder(null).build().escalationLadder().isEmpty());
+
+        RunEnvelope defaults = RunEnvelope.builder().build();
+        assertTrue(defaults.escalationLadder().isEmpty());
+        assertTrue(defaults.metadata().labels().isEmpty());
+        assertEquals(0, defaults.shardIndex());
+        assertEquals(0, defaults.shardCount());
+    }
+
+    @Test
+    void reportModelConstructorsAndAggregates() {
+        RunEnvelope envelope = RunEnvelope.builder().runId("r1").build();
+        TestRecord passed = new TestRecord(new TestId("u1", "C", "ok"));
+        passed.internalSetState(TestState.PASSED);
+        TestRecord flaky = new TestRecord(new TestId("u2", "C", "flaky"));
+        flaky.internalAddAttempt(ExecutionAttempt.builder().attemptNumber(1).outcome(TestState.FAILED).build());
+        flaky.internalAddAttempt(ExecutionAttempt.builder().attemptNumber(2).outcome(TestState.PASSED).build());
+        flaky.internalSetState(TestState.PASSED);
+        TestRecord failed = new TestRecord(new TestId("u3", "C", "bad"));
+        failed.internalSetState(TestState.FAILED);
+
+        ReportModel threeArg = new ReportModel(List.of(passed), 100, 50);
+        assertEquals(0L, threeArg.durationMillis());
+        assertNull(threeArg.envelope());
+
+        ReportModel model = new ReportModel(List.of(passed, flaky, failed), 0, 10, envelope);
         assertEquals(10, model.durationMillis());
-        assertEquals(1, model.total());
+        assertEquals(3, model.total());
+        assertEquals(2, model.count(TestState.PASSED));
+        assertEquals(1, model.count(TestState.FAILED));
+        assertEquals(1, model.flakyCount());
         assertTrue(model.hasFailures());
-        assertEquals(0, model.flakyCount());
+        assertEquals(envelope, model.envelope());
+        assertEquals(0, model.startMillis());
+        assertEquals(10, model.endMillis());
     }
 }

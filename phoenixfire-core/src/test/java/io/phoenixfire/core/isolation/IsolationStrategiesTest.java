@@ -2,6 +2,7 @@ package io.phoenixfire.core.isolation;
 
 import io.phoenixfire.api.model.IsolationLevel;
 import io.phoenixfire.api.model.TestId;
+import io.phoenixfire.api.spi.IsolationContext;
 import io.phoenixfire.api.spi.WorkUnit;
 import io.phoenixfire.core.config.PhoenixfireConfiguration;
 import io.phoenixfire.core.util.PhoenixfireLogger;

@@ -12,7 +12,7 @@ class ClassNamePatternsTest {
 
     @Test
     void convertsSurefireGlobsToRegex() {
-        assertEquals(".*Foo.*", ClassNamePatterns.toRegex("**/Foo.java"));
+        assertEquals(".*Foo", ClassNamePatterns.toRegex("**/Foo.java"));
         assertEquals("com\\.example\\.Foo", ClassNamePatterns.toRegex("com/example/Foo.class"));
         assertTrue(ClassNamePatterns.toRegex("**/*Test").contains(".*"));
     }

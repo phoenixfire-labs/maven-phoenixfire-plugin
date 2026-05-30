@@ -24,7 +24,7 @@ import java.util.Map;
  * launch never hits the operating system's command-line length limit. The set of tests to run is
  * never placed on the command line at all; it is sent to the fork over the IPC socket.
  */
-public final class ForkLauncher {
+public class ForkLauncher {
 
     private final PhoenixfireConfiguration config;
     private final int controllerPort;

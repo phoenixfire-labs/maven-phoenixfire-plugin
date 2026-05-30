@@ -1,6 +1,7 @@
 package io.phoenixfire.core.supervisor;
 
 import io.phoenixfire.core.config.PhoenixfireConfiguration;
+import io.phoenixfire.core.testsupport.ExitZeroMain;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 

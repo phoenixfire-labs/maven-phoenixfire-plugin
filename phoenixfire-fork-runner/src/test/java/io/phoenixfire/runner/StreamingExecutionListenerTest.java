@@ -2,7 +2,6 @@ package io.phoenixfire.runner;
 
 import org.junit.jupiter.api.Test;
 import org.junit.platform.engine.TestExecutionResult;
-import org.junit.platform.engine.UniqueId;
 import org.junit.platform.engine.discovery.DiscoverySelectors;
 import org.junit.platform.launcher.TestIdentifier;
 import org.junit.platform.launcher.TestPlan;
@@ -24,10 +23,11 @@ class StreamingExecutionListenerTest {
 
     @Test
     void classNameFromUniqueId() {
-        UniqueId uid = UniqueId.parse(
-                "[engine:junit-jupiter]/[class:com.example.DemoTest]/[method:demo()]");
-        TestIdentifier id = TestIdentifier.from(uid);
-        assertEquals("com.example.DemoTest", StreamingExecutionListener.classNameOf(id));
+        TestIdentifier id = discoverSelfTest();
+        assertEquals(StreamingExecutionListenerTest.class.getName(), StreamingExecutionListener.classNameOf(id));
+        assertEquals("com.example.DemoTest",
+                StreamingExecutionListener.parseClassNameFromUniqueId(
+                        "[engine:junit-jupiter]/[class:com.example.DemoTest]/[method:demo()]"));
         assertEquals("com.example.Fallback",
                 StreamingExecutionListener.parseClassNameFromUniqueId(
                         "[engine:junit-jupiter]/[class:com.example.Fallback]/[method:x()]"));
