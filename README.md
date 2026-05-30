@@ -12,6 +12,10 @@ corrupted: execution can terminate prematurely, retries may run in a poisoned JV
 report can be incomplete. Phoenixfire detects these failures, escalates isolation, and accounts for
 every test.
 
+The fork is assumed to be an unreliable worker process whose state must be monitored, accounted for, 
+and recovered from. Result visiblity as an actional fact-table is a first class consideration, and so 
+is restarting terminated forks with configurable retry logic and more. 
+
 ## How it works
 
 - **Controller owns the truth.** All durable state lives in the controller (the Maven JVM) in an
