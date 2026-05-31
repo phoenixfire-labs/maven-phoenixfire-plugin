@@ -50,7 +50,9 @@ is restarting terminated forks with configurable retry logic and more.
 
 ### JDK 17 vs 21 in CI
 
-CI builds and tests on both JDK 17 and 21; **publish** builds once on JDK 17. There is a single set
+**Pull requests** run the [Build workflow](.github/workflows/build.yml) (unit tests, Invoker ITs, JaCoCo gate) on JDK 17 and 21—require it as a branch protection check before merge. **Pushes to `main`** run only [publish-snapshot](.github/workflows/publish-snapshot.yml) (compile and deploy, no tests). **Releases** use the publish workflows the same way (deploy only).
+
+Publish builds once on JDK 17. There is a single set
 of published artifacts (`io.github.benmanifold:*`), compiled with `maven.compiler.release` **17** (Java 17
 bytecode). You do **not** publish separate coordinates per JDK.
 
@@ -379,7 +381,7 @@ manually with a version input.
 ### SNAPSHOT builds for testing
 
 Every push to **`main`** runs **Publish SNAPSHOT to GitHub Packages** (`.github/workflows/publish-snapshot.yml`).
-It deploys whatever `<revision>` is in `pom.xml` (must end with `-SNAPSHOT`, e.g. `0.1.1-SNAPSHOT`).
+It deploys whatever `<revision>` is in `pom.xml` (must end with `-SNAPSHOT`, e.g. `0.1.1-SNAPSHOT`) without re-running the PR test suite.
 Use that coordinate in a consumer project while iterating.
 
 ### One-time: `PACKAGES_PUBLISH_TOKEN` (fixes 401)

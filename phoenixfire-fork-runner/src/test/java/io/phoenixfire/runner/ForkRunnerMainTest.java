@@ -128,14 +128,14 @@ class ForkRunnerMainTest {
             Integer exit = ForkRunnerTestSupport.runMain(props);
             assertEquals(1, exit);
             String diagnostic = err.toString(StandardCharsets.UTF_8);
-            assertTrue(diagnostic.contains("[phoenixfire-fork] STARTUP FAILED:"),
+            assertTrue(diagnostic.contains("[phoenixfire-fork] startup failed:"),
                     () -> "expected explicit startup failure, got: " + diagnostic);
             assertTrue(diagnostic.contains(IpcProtocol.PROP_PORT),
                     () -> "expected property name in message, got: " + diagnostic);
             assertFalse(diagnostic.contains("NumberFormatException"),
                     () -> "misconfiguration should not surface as parse exception: " + diagnostic);
-            assertFalse(diagnostic.contains("ForkRunnerMainTest"),
-                    () -> "stderr should not include JUnit test frames: " + diagnostic);
+            assertFalse(diagnostic.contains("\tat "),
+                    () -> "startup misconfiguration should not print a stack trace: " + diagnostic);
         } finally {
             System.setErr(previous);
         }
@@ -151,8 +151,9 @@ class ForkRunnerMainTest {
         try {
             assertEquals(1, ForkRunnerTestSupport.runMain(props));
             String diagnostic = err.toString(StandardCharsets.UTF_8);
-            assertTrue(diagnostic.contains("STARTUP FAILED"));
+            assertTrue(diagnostic.contains("startup failed"));
             assertTrue(diagnostic.contains("not an integer"));
+            assertFalse(diagnostic.contains("\tat "));
         } finally {
             System.setErr(previous);
         }

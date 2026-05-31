@@ -56,5 +56,5 @@ jobs:
             exit 1
           fi
 
-      - name: Build, test, and deploy SNAPSHOT
-        run: mvn -B -ntp clean deploy -Pgithub-packages -Prun-its
+      - name: Build and deploy SNAPSHOT
+        run: mvn -B -ntp clean deploy -Pgithub-packages -Dmaven.test.skip=true -Djacoco.skip=true

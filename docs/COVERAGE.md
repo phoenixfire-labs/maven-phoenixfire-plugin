@@ -34,7 +34,9 @@ Per-module reports (after `test`):
 
 ## CI
 
-The [Build workflow](../.github/workflows/build.yml) runs `mvn clean verify install -Prun-its` on JDK 17 and 21. The JaCoCo check runs on both matrix legs. On JDK 17, the workflow uploads `phoenixfire-coverage/target/site/jacoco-aggregate/` as a build artifact for inspection.
+The [Build workflow](../.github/workflows/build.yml) runs on **pull requests** and `workflow_dispatch` with `mvn clean verify install -Prun-its` on JDK 17 and 21. The JaCoCo check runs on both matrix legs. On JDK 17, the workflow uploads `phoenixfire-coverage/target/site/jacoco-aggregate/` as a build artifact for inspection.
+
+**Pushes to `main`** do not run Build; they run [publish-snapshot](../.github/workflows/publish-snapshot.yml) only (`deploy` with tests and JaCoCo skipped). Release publish workflows behave the same way.
 
 ## Notes
 

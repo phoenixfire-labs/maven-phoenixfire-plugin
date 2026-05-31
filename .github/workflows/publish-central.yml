@@ -90,4 +90,4 @@ jobs:
         run: mvn -B -ntp versions:set-property -Dproperty=revision -DnewVersion=${{ steps.version.outputs.version }} -DgenerateBackupPoms=false
 
       - name: Build, sign, and publish to Central
-        run: mvn -B -ntp clean deploy -Pcentral -Prun-its
+        run: mvn -B -ntp clean deploy -Pcentral -Dmaven.test.skip=true -Djacoco.skip=true

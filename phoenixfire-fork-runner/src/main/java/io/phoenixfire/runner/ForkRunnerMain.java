@@ -12,7 +12,6 @@ import org.junit.platform.launcher.core.LauncherDiscoveryRequestBuilder;
 import org.junit.platform.launcher.core.LauncherFactory;
 
 import java.io.File;
-import java.io.PrintStream;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -69,8 +68,7 @@ public final class ForkRunnerMain {
 
             sendBye(client);
         } catch (Throwable t) {
-            // Surface the failure to stderr so the controller can capture a diagnostic tail.
-            printForkDiagnostic(t, System.err);
+            reportUncaught(t);
             exitCode = 1;
         } finally {
             if (client != null) {
@@ -107,46 +105,21 @@ public final class ForkRunnerMain {
         }
     }
 
-    /** Logs a single-line startup failure and exits; no stack trace (expected misconfiguration). */
+    /** Logs a single-line startup failure and exits; no stack trace (misconfiguration). */
     private static void failStartup(String message) {
-        System.err.println("[phoenixfire-fork] STARTUP FAILED: " + message);
+        reportLine("startup failed", message);
         shutdown(1);
     }
 
-    /**
-     * Prints a compact diagnostic for unexpected failures. JUnit/reflection and in-process test
-     * harness frames are omitted so fork logs and Surefire output stay readable.
-     */
-    static void printForkDiagnostic(Throwable t, PrintStream out) {
-        out.println("[phoenixfire-fork] " + t.getClass().getSimpleName() + ": " + t.getMessage());
-        for (StackTraceElement frame : t.getStackTrace()) {
-            if (isNoiseStackFrame(frame)) {
-                break;
-            }
-            out.println("\tat " + frame);
-        }
-        Throwable cause = t.getCause();
-        if (cause != null && cause != t) {
-            out.println("Caused by: " + cause);
-            for (StackTraceElement frame : cause.getStackTrace()) {
-                if (isNoiseStackFrame(frame)) {
-                    break;
-                }
-                out.println("\tat " + frame);
-            }
-        }
+    private static void reportLine(String kind, String detail) {
+        System.err.println("[phoenixfire-fork] " + kind + ": " + detail);
     }
 
-    private static boolean isNoiseStackFrame(StackTraceElement frame) {
-        String cn = frame.getClassName();
-        return cn.startsWith("org.junit.")
-                || cn.startsWith("org.junit.jupiter.")
-                || cn.startsWith("org.junit.platform.")
-                || cn.startsWith("jdk.internal.reflect.")
-                || cn.startsWith("java.lang.reflect.")
-                || cn.startsWith("sun.reflect.")
-                || cn.contains("ForkRunnerTestSupport")
-                || cn.contains("ForkRunnerMainTest");
+    private static void reportUncaught(Throwable t) {
+        String summary = t.getClass().getSimpleName()
+                + (t.getMessage() != null && !t.getMessage().isEmpty() ? ": " + t.getMessage() : "");
+        System.err.println("[phoenixfire-fork] uncaught " + summary);
+        t.printStackTrace(System.err);
     }
 
     @SuppressWarnings("unchecked")
