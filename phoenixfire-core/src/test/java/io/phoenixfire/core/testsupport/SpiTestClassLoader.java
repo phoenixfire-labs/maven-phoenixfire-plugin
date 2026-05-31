@@ -19,12 +19,23 @@ public final class SpiTestClassLoader {
     /** Loads SPI from {@code custom-spi} plus an optional single implementation override. */
     public static ClassLoader createWithService(ClassLoader parent, Class<?> serviceType,
                                                 Class<?> implementation) throws Exception {
+        Path overlay = overlayFor(serviceType, implementation);
+        return create(parent, Path.of("src", "test", "resources", "custom-spi"), overlay);
+    }
+
+    /** Like {@link #createWithService} but without the shared {@code custom-spi} registrations. */
+    public static ClassLoader createWithOnlyService(ClassLoader parent, Class<?> serviceType,
+                                                    Class<?> implementation) throws Exception {
+        return create(parent, overlayFor(serviceType, implementation));
+    }
+
+    private static Path overlayFor(Class<?> serviceType, Class<?> implementation) throws Exception {
         Path overlay = Files.createTempDirectory("phoenixfire-spi-");
         Path services = overlay.resolve("META-INF").resolve("services");
         Files.createDirectories(services);
         Files.writeString(services.resolve(serviceType.getName()),
                 implementation.getName() + System.lineSeparator(), StandardCharsets.UTF_8);
-        return create(parent, Path.of("src", "test", "resources", "custom-spi"), overlay);
+        return overlay;
     }
 
     private static ClassLoader create(ClassLoader parent, Path... resourceRoots) throws Exception {

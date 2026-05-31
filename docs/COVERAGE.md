@@ -1,6 +1,6 @@
 # Code coverage
 
-Phoenixfire enforces **100% line and branch coverage** on production modules via [JaCoCo](https://www.jacoco.org/jacoco/) in the parent POM.
+Phoenixfire enforces **95% line and 90% branch coverage** on production modules via [JaCoCo](https://www.jacoco.org/jacoco/) in the `phoenixfire-coverage` module.
 
 ## Scope
 
@@ -17,7 +17,7 @@ End-to-end Invoker projects under `phoenixfire-it/src/it` exercise the plugin in
 ## Local commands
 
 ```bash
-# Unit tests + coverage report + 100% check (no Invoker ITs)
+# Unit tests + coverage report + coverage check (no Invoker ITs)
 mvn clean verify
 
 # Full CI parity (Invoker ITs + coverage check + install)
@@ -39,4 +39,4 @@ The [Build workflow](../.github/workflows/build.yml) runs `mvn clean verify inst
 ## Notes
 
 - Coverage is **unit-test** coverage in the Maven JVM, not line hits inside forked test workers spawned during Invoker runs.
-- The gate is **100%** on lines and branches for the bundle. If the build fails at `jacoco-check`, open the aggregate report and add or extend tests in the module that shows gaps.
+- The gate is **95%** line and **90%** branch coverage for the aggregate bundle. If the build fails at `jacoco-check`, open the aggregate report and add or extend tests in the module that shows gaps.

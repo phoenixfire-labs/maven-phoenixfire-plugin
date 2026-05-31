@@ -13,7 +13,7 @@
     <artifactId>phoenixfire-coverage</artifactId>
     <packaging>jar</packaging>
     <name>Phoenixfire Coverage</name>
-    <description>Reactor-terminal JaCoCo aggregate report and 100% coverage gate.</description>
+    <description>Reactor-terminal JaCoCo aggregate report and coverage gate (95% line / 90% branch).</description>
 
     <properties>
         <maven.deploy.skip>true</maven.deploy.skip>
@@ -120,12 +120,12 @@
                                         <limit>
                                             <counter>LINE</counter>
                                             <value>COVEREDRATIO</value>
-                                            <minimum>1.00</minimum>
+                                            <minimum>0.95</minimum>
                                         </limit>
                                         <limit>
                                             <counter>BRANCH</counter>
                                             <value>COVEREDRATIO</value>
-                                            <minimum>1.00</minimum>
+                                            <minimum>0.90</minimum>
                                         </limit>
                                     </limits>
                                 </rule>

@@ -27,6 +27,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public final class IpcServer implements AutoCloseable {
 
+    /** Backoff after a transient accept failure so the accept loop does not spin and flood logs. */
+    private static final long ACCEPT_RETRY_BACKOFF_MILLIS = 25L;
+
     private final PhoenixfireLogger log;
     private final ConcurrentHashMap<String, ForkSession> sessions = new ConcurrentHashMap<>();
     private final AtomicBoolean running = new AtomicBoolean(false);
@@ -73,6 +76,12 @@ public final class IpcServer implements AutoCloseable {
             } catch (IOException e) {
                 if (running.get()) {
                     log.warn("IPC accept error: " + e.getMessage());
+                    try {
+                        Thread.sleep(ACCEPT_RETRY_BACKOFF_MILLIS);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        return;
+                    }
                 }
             }
         }

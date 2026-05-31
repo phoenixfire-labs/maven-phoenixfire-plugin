@@ -18,6 +18,27 @@ public interface PhoenixfireLogger {
         error(message + " : " + t);
     }
 
+    /** No-op logger for tests that exercise warn/error paths without cluttering Surefire output. */
+    static PhoenixfireLogger noop() {
+        return new PhoenixfireLogger() {
+            @Override
+            public void debug(String message) {
+            }
+
+            @Override
+            public void info(String message) {
+            }
+
+            @Override
+            public void warn(String message) {
+            }
+
+            @Override
+            public void error(String message) {
+            }
+        };
+    }
+
     /** A logger that writes to standard out/err; useful for tests and standalone use. */
     static PhoenixfireLogger console() {
         return new PhoenixfireLogger() {

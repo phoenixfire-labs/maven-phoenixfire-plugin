@@ -209,7 +209,7 @@ that needed a retry to pass. Either way, flaky tests are always logged and recor
 
 ## Code coverage
 
-JaCoCo enforces **100% line and branch coverage** on `phoenixfire-api`, `phoenixfire-core`,
+JaCoCo enforces **95% line and 90% branch coverage** on `phoenixfire-api`, `phoenixfire-core`,
 `phoenixfire-fork-runner`, and `phoenixfire-maven-plugin` during `verify`. Invoker IT modules are
 out of scope for the gate (they exercise the plugin end-to-end in separate Maven builds).
 

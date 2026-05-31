@@ -252,6 +252,30 @@ class TestSelectorTest {
     }
 
     @Test
+    void globToRegexEscapesNonAlphanumericCharacters() throws Exception {
+        var method = TestSelector.class.getDeclaredMethod("globToRegex", String.class);
+        method.setAccessible(true);
+        String regex = (String) method.invoke(null, "com.acme.Foo+Test");
+        assertTrue(regex.contains("\\+"));
+    }
+
+    @Test
+    void simpleNameReturnsEmptyForEmptyInput() throws Exception {
+        var method = TestSelector.class.getDeclaredMethod("simpleName", String.class);
+        method.setAccessible(true);
+        assertEquals("", method.invoke(null, ""));
+    }
+
+    @Test
+    void methodNameOfParsesTemplateInvocationSegment() throws Exception {
+        TestId invocation = new TestId(
+                "[engine:junit-jupiter]/[class:com.acme.FooTest]/[test-template-invocation:case(1)]",
+                "com.acme.FooTest", "case(1)");
+        List<TestId> out = TestSelector.parse("FooTest#case").filter(List.of(invocation));
+        assertEquals(1, out.size());
+    }
+
+    @Test
     void matchesViaMethodNameWhenDisplayNameAbsent() {
         TestId id = new TestId(
                 "[engine:junit-jupiter]/[class:com.acme.FooTest]/[method:alpha()]",

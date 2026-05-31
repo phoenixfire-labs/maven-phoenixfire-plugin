@@ -18,6 +18,7 @@ import io.phoenixfire.core.journal.ExecutionJournal;
 import io.phoenixfire.core.testsupport.SimulatedFork;
 import io.phoenixfire.core.testsupport.spi.BackoffRetryPolicy;
 import io.phoenixfire.core.testsupport.spi.DeclineRetryPolicy;
+import io.phoenixfire.core.testsupport.spi.EscalatingRetryPolicy;
 import io.phoenixfire.core.testsupport.SpiTestClassLoader;
 import io.phoenixfire.api.spi.RetryPolicy;
 import io.phoenixfire.core.util.PhoenixfireLogger;
@@ -54,6 +55,20 @@ class ExecutionEngineInternalTest {
     void resolveHostFallsBackWhenLocalHostBlank() {
         String host = ExecutionEngine.resolveHost(() -> "  ");
         assertTrue(host == null || !host.isBlank());
+    }
+
+    @Test
+    void resolveHostFallsThroughToEnvironmentWhenLookupReturnsNull() {
+        String host = ExecutionEngine.resolveHost(() -> null);
+        String env = System.getenv("HOSTNAME");
+        if (env == null || env.isBlank()) {
+            env = System.getenv("COMPUTERNAME");
+        }
+        if (env == null || env.isBlank()) {
+            assertNull(host);
+        } else {
+            assertEquals(env, host);
+        }
     }
 
     @Test
@@ -214,6 +229,66 @@ class ExecutionEngineInternalTest {
         } finally {
             System.clearProperty("phoenixfire.fork.main");
             System.clearProperty(SimulatedFork.PROP_MODE);
+        }
+    }
+
+    @Test
+    void maybeScheduleRetryStopsWhenBudgetExhausted() throws Exception {
+        PhoenixfireConfiguration config = PhoenixfireConfiguration.builder()
+                .classpath(List.of())
+                .maxAttempts(1)
+                .heartbeatTimeoutMillis(20_000L)
+                .build();
+        try (ExecutionEngine engine = new ExecutionEngine(config, PhoenixfireLogger.console(), null)) {
+            Field journalField = ExecutionEngine.class.getDeclaredField("journal");
+            journalField.setAccessible(true);
+            ExecutionJournal journal = (ExecutionJournal) journalField.get(engine);
+            TestId id = new TestId("uid-1", "sim.FooTest", "t");
+            journal.seed(List.of(id));
+            journal.recordAttempt(id, ExecutionAttempt.builder()
+                    .attemptNumber(1)
+                    .isolationLevel(IsolationLevel.SHARED_FORK_POOL)
+                    .outcome(TestState.FAILED)
+                    .failureMode(FailureMode.ASSERTION_FAILURE)
+                    .build());
+            Method schedule = ExecutionEngine.class.getDeclaredMethod("maybeScheduleRetry",
+                    TestId.class, IsolationLevel.class, TestState.class, FailureMode.class, int.class, boolean.class);
+            schedule.setAccessible(true);
+            long backoff = (long) schedule.invoke(engine, id, IsolationLevel.SHARED_FORK_POOL, TestState.FAILED,
+                    FailureMode.ASSERTION_FAILURE, 1, false);
+            assertEquals(0L, backoff);
+            assertEquals(1, journal.record(id).attemptCount());
+        }
+    }
+
+    @Test
+    void maybeScheduleRetryEscalatesWithBackoff() throws Exception {
+        ClassLoader spiLoader = SpiTestClassLoader.createWithOnlyService(
+                ExecutionEngine.class.getClassLoader(), RetryPolicy.class, EscalatingRetryPolicy.class);
+        PhoenixfireConfiguration config = PhoenixfireConfiguration.builder()
+                .classpath(List.of())
+                .maxAttempts(3)
+                .heartbeatTimeoutMillis(20_000L)
+                .build();
+        try (ExecutionEngine engine = new ExecutionEngine(config, PhoenixfireLogger.console(), spiLoader)) {
+            Field journalField = ExecutionEngine.class.getDeclaredField("journal");
+            journalField.setAccessible(true);
+            ExecutionJournal journal = (ExecutionJournal) journalField.get(engine);
+            TestId id = new TestId("uid-1", "sim.FooTest", "t");
+            journal.seed(List.of(id));
+            journal.recordAttempt(id, ExecutionAttempt.builder()
+                    .attemptNumber(1)
+                    .isolationLevel(IsolationLevel.SHARED_FORK_POOL)
+                    .outcome(TestState.FAILED)
+                    .failureMode(FailureMode.ASSERTION_FAILURE)
+                    .build());
+            Method schedule = ExecutionEngine.class.getDeclaredMethod("maybeScheduleRetry",
+                    TestId.class, IsolationLevel.class, TestState.class, FailureMode.class, int.class, boolean.class);
+            schedule.setAccessible(true);
+            long backoff = (long) schedule.invoke(engine, id, IsolationLevel.SHARED_FORK_POOL, TestState.FAILED,
+                    FailureMode.ASSERTION_FAILURE, 1, false);
+            assertEquals(5L, backoff);
+            assertEquals(IsolationLevel.FRESH_FORK, journal.record(id).targetLevel());
         }
     }
 

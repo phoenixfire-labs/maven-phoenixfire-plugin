@@ -24,6 +24,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class IpcServerTest {
 
+    private static final PhoenixfireLogger LOG = PhoenixfireLogger.noop();
+
     private IpcServer server;
 
     @AfterEach
@@ -35,7 +37,7 @@ class IpcServerTest {
 
     @Test
     void acceptsHelloAndRoutesMessages() throws Exception {
-        server = new IpcServer(PhoenixfireLogger.console());
+        server = new IpcServer(LOG);
         int port = server.start();
 
         CountDownLatch connected = new CountDownLatch(1);
@@ -77,7 +79,7 @@ class IpcServerTest {
 
     @Test
     void survivesOnDisconnectedHandlerFailure() throws Exception {
-        server = new IpcServer(PhoenixfireLogger.console());
+        server = new IpcServer(LOG);
         int port = server.start();
         CountDownLatch disconnected = new CountDownLatch(1);
         server.register("fork-1", new ForkSession() {
@@ -110,7 +112,7 @@ class IpcServerTest {
 
     @Test
     void stopSurvivesClosedServerSocket() throws Exception {
-        server = new IpcServer(PhoenixfireLogger.console());
+        server = new IpcServer(LOG);
         server.start();
         server.stop();
         server.stop();
@@ -118,7 +120,7 @@ class IpcServerTest {
 
     @Test
     void rejectsBadTokenAndMalformedHello() throws Exception {
-        server = new IpcServer(PhoenixfireLogger.console());
+        server = new IpcServer(LOG);
         int port = server.start();
         server.register("f", new ForkSession() {
             @Override
@@ -149,7 +151,7 @@ class IpcServerTest {
 
     @Test
     void rejectsUnknownForkId() throws Exception {
-        server = new IpcServer(PhoenixfireLogger.console());
+        server = new IpcServer(LOG);
         int port = server.start();
         try (Socket socket = connect(port, "missing", "token")) {
             // connection closed
@@ -158,7 +160,7 @@ class IpcServerTest {
 
     @Test
     void closesImmediatelyOnEmptyHello() throws Exception {
-        server = new IpcServer(PhoenixfireLogger.console());
+        server = new IpcServer(LOG);
         int port = server.start();
         try (Socket socket = new Socket(InetAddress.getLoopbackAddress(), port)) {
             // no hello line
@@ -167,7 +169,7 @@ class IpcServerTest {
 
     @Test
     void survivesMalformedMessageLines() throws Exception {
-        server = new IpcServer(PhoenixfireLogger.console());
+        server = new IpcServer(LOG);
         int port = server.start();
         CountDownLatch disconnected = new CountDownLatch(1);
         server.register("fork-1", new ForkSession() {
@@ -200,7 +202,7 @@ class IpcServerTest {
 
     @Test
     void acceptLoopSurvivesIoExceptionWhileRunning() throws Exception {
-        server = new IpcServer(PhoenixfireLogger.console());
+        server = new IpcServer(LOG);
         Field runningField = IpcServer.class.getDeclaredField("running");
         runningField.setAccessible(true);
         Field socketField = IpcServer.class.getDeclaredField("serverSocket");
@@ -216,7 +218,7 @@ class IpcServerTest {
             }
         });
         worker.start();
-        Thread.sleep(300);
+        Thread.sleep(50);
         ((java.util.concurrent.atomic.AtomicBoolean) runningField.get(server)).set(false);
         ((java.net.ServerSocket) socketField.get(server)).close();
         worker.join(5_000);
@@ -224,7 +226,7 @@ class IpcServerTest {
 
     @Test
     void handleIgnoresCloseFailureOnWrappedSocket() throws Exception {
-        server = new IpcServer(PhoenixfireLogger.console());
+        server = new IpcServer(LOG);
         Field socketField = IpcServer.class.getDeclaredField("serverSocket");
         socketField.setAccessible(true);
         socketField.set(server, new ThrowOnCloseAcceptSocket());
@@ -272,18 +274,21 @@ class IpcServerTest {
 
     @Test
     void acceptLoopSurvivesClosedServerSocket() throws Exception {
-        server = new IpcServer(PhoenixfireLogger.console());
+        server = new IpcServer(LOG);
         server.start();
+        Field acceptThreadField = IpcServer.class.getDeclaredField("acceptThread");
+        acceptThreadField.setAccessible(true);
+        Thread acceptThread = (Thread) acceptThreadField.get(server);
         Field socketField = IpcServer.class.getDeclaredField("serverSocket");
         socketField.setAccessible(true);
         ((java.net.ServerSocket) socketField.get(server)).close();
-        Thread.sleep(300);
+        acceptThread.join(5_000);
         server.stop();
     }
 
     @Test
     void stopIgnoresServerSocketCloseFailure() throws Exception {
-        server = new IpcServer(PhoenixfireLogger.console());
+        server = new IpcServer(LOG);
         server.start();
         Field socketField = IpcServer.class.getDeclaredField("serverSocket");
         socketField.setAccessible(true);
@@ -294,7 +299,7 @@ class IpcServerTest {
 
     @Test
     void handleIgnoresSocketCloseFailure() throws Exception {
-        server = new IpcServer(PhoenixfireLogger.console());
+        server = new IpcServer(LOG);
         int port = server.start();
         CountDownLatch disconnected = new CountDownLatch(1);
         server.register("fork-1", new ForkSession() {
@@ -325,7 +330,7 @@ class IpcServerTest {
 
     @Test
     void handleClosesRejectedConnections() throws Exception {
-        server = new IpcServer(PhoenixfireLogger.console());
+        server = new IpcServer(LOG);
         int port = server.start();
         CountDownLatch disconnected = new CountDownLatch(1);
         server.register("fork-1", new ForkSession() {
@@ -356,7 +361,7 @@ class IpcServerTest {
 
     @Test
     void forkChannelSendIsThreadSafe() throws Exception {
-        server = new IpcServer(PhoenixfireLogger.console());
+        server = new IpcServer(LOG);
         int port = server.start();
         CountDownLatch connected = new CountDownLatch(1);
         AtomicReference<ForkChannel> channelRef = new AtomicReference<>();
