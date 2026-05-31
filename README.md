@@ -245,9 +245,9 @@ Written to `target/phoenixfire-reports` (unit) / `target/phoenixfire-it-reports`
 
 Every report carries a **run envelope** identifying the run so results can be correlated over time:
 a generated `runId`, host/OS/JVM, the resilience config in effect, the Maven coordinates, plus
-optional git/CI metadata. The plugin is **CI-vendor-agnostic**: it auto-detects what it can in-process
-(host/OS/JVM, project, config), does a best-effort local `git` fallback for commit/branch/dirty, and
-otherwise reads neutral overrides that win over everything. Map your CI's variables onto them once:
+optional git/CI metadata. The plugin is **CI-vendor-agnostic**: it auto-detects host/OS/JVM, project
+coordinates, and config in-process, but **does not run `git`**. Supply commit/branch/dirty and CI
+fields via `-Dphoenixfire.*` or plugin `<configuration>` (including `${env.VAR}` in your POM):
 
 ```bash
 mvn verify \
@@ -256,6 +256,19 @@ mvn verify \
   -Dphoenixfire.ci.provider=github \
   -Dphoenixfire.ci.buildId=$GITHUB_RUN_ID \
   -Dphoenixfire.ci.buildUrl=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID
+```
+
+```xml
+<plugin>
+  <groupId>io.github.benmanifold</groupId>
+  <artifactId>phoenixfire-maven-plugin</artifactId>
+  <configuration>
+    <gitSha>${env.GITHUB_SHA}</gitSha>
+    <gitBranch>${env.GITHUB_REF_NAME}</gitBranch>
+    <ciProvider>github</ciProvider>
+    <ciBuildId>${env.GITHUB_RUN_ID}</ciBuildId>
+  </configuration>
+</plugin>
 ```
 
 Arbitrary labels (e.g. `service`, `team`) can be added via the `runLabels` map parameter.

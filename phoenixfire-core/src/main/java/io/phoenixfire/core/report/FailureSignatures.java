@@ -41,8 +41,12 @@ public final class FailureSignatures {
     }
 
     private static String hash(String normalized) {
+        return hash(normalized, "SHA-256");
+    }
+
+    static String hash(String normalized, String algorithm) {
         try {
-            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            MessageDigest md = MessageDigest.getInstance(algorithm);
             byte[] digest = md.digest(normalized.getBytes(StandardCharsets.UTF_8));
             StringBuilder sb = new StringBuilder();
             for (int i = 0; i < 6 && i < digest.length; i++) {

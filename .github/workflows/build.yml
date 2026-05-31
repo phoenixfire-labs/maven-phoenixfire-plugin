@@ -28,9 +28,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          # Full history so the run-envelope git fallback can resolve the commit/branch.
-          fetch-depth: 0
 
       - name: Set up JDK ${{ matrix.java }}
         uses: actions/setup-java@v4
@@ -40,7 +37,16 @@ jobs:
           cache: maven
 
       - name: Build, unit test, and run integration tests
-        run: mvn -B -ntp clean verify install -Prun-its
+        env:
+          PHOENIXFIRE_GIT_SHA: ${{ github.sha }}
+          PHOENIXFIRE_GIT_BRANCH: ${{ github.head_ref || github.ref_name }}
+        run: >
+          mvn -B -ntp clean verify install -Prun-its
+          -Dphoenixfire.git.sha=$PHOENIXFIRE_GIT_SHA
+          -Dphoenixfire.git.branch=$PHOENIXFIRE_GIT_BRANCH
+          -Dphoenixfire.ci.provider=github
+          -Dphoenixfire.ci.buildId=${{ github.run_id }}
+          -Dphoenixfire.ci.buildUrl=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
       - name: Upload JaCoCo coverage report
         if: matrix.java == '17'

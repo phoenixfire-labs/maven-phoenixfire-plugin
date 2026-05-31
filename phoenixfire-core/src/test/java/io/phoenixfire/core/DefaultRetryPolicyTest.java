@@ -147,4 +147,97 @@ class DefaultRetryPolicyTest {
 
         assertFalse(decision.shouldRetry());
     }
+
+    @Test
+    void successfulOutcomeNeverRetries() {
+        DefaultRetryPolicy policy = new DefaultRetryPolicy(3, 1, 0L, LADDER, 1);
+        TestRecord record = recordWithAttempts(1, TestState.PASSED, FailureMode.NONE);
+
+        RetryDecision decision = policy.decide(record,
+                new FailureContext(TestState.PASSED, FailureMode.NONE,
+                        IsolationLevel.SHARED_FORK_POOL, 1, 0));
+
+        assertFalse(decision.shouldRetry());
+    }
+
+    @Test
+    void appliesBackoffMillisOnRetry() {
+        DefaultRetryPolicy policy = new DefaultRetryPolicy(5, 0, 500L, LADDER, 1);
+        TestRecord record = recordWithAttempts(1, TestState.CRASHED, FailureMode.SIGKILL);
+
+        RetryDecision decision = policy.decide(record,
+                new FailureContext(TestState.CRASHED, FailureMode.SIGKILL,
+                        IsolationLevel.SHARED_FORK_POOL, 1, 137));
+
+        assertTrue(decision.shouldRetry());
+        assertEquals(500L, decision.backoffMillis());
+    }
+
+    @Test
+    void escalatesToFreshForkWhenLadderReturnsSharedPool() {
+        DefaultRetryPolicy policy = new DefaultRetryPolicy(5, 0, 0L,
+                List.of(IsolationLevel.FRESH_FORK, IsolationLevel.SHARED_FORK_POOL), 1);
+        TestRecord record = recordWithAttempts(1, TestState.CRASHED, FailureMode.SIGKILL,
+                IsolationLevel.FRESH_FORK);
+
+        RetryDecision decision = policy.decide(record,
+                new FailureContext(TestState.CRASHED, FailureMode.SIGKILL,
+                        IsolationLevel.FRESH_FORK, 1, 137));
+
+        assertTrue(decision.shouldRetry());
+        assertEquals(IsolationLevel.FRESH_FORK, decision.nextLevel());
+    }
+
+    @Test
+    void staysAtTopOfLadderWhenAlreadyMaximum() {
+        DefaultRetryPolicy policy = new DefaultRetryPolicy(5, 0, 0L, LADDER, 1);
+        TestRecord record = recordWithAttempts(2, TestState.CRASHED, FailureMode.SIGKILL,
+                IsolationLevel.ONE_FORK_PER_CLASS);
+
+        RetryDecision decision = policy.decide(record,
+                new FailureContext(TestState.CRASHED, FailureMode.SIGKILL,
+                        IsolationLevel.ONE_FORK_PER_CLASS, 2, 137));
+
+        assertTrue(decision.shouldRetry());
+        assertEquals(IsolationLevel.ONE_FORK_PER_CLASS, decision.nextLevel());
+    }
+
+    @Test
+    void escalatesUnknownLevelViaEnumNext() {
+        DefaultRetryPolicy policy = new DefaultRetryPolicy(5, 0, 0L, List.of(), 1);
+        TestRecord record = recordWithAttempts(1, TestState.CRASHED, FailureMode.UNKNOWN,
+                IsolationLevel.FRESH_FORK);
+
+        RetryDecision decision = policy.decide(record,
+                new FailureContext(TestState.CRASHED, FailureMode.UNKNOWN,
+                        IsolationLevel.FRESH_FORK, 1, 1));
+
+        assertTrue(decision.shouldRetry());
+        assertEquals(IsolationLevel.ONE_FORK_PER_CLASS, decision.nextLevel());
+    }
+
+    @Test
+    void deterministicFailureRetriesOnFinalAllowedAttempt() {
+        DefaultRetryPolicy policy = new DefaultRetryPolicy(5, 2, 0L, LADDER, 1);
+        TestRecord record = recordWithAttempts(2, TestState.FAILED, FailureMode.ASSERTION_FAILURE);
+
+        RetryDecision decision = policy.decide(record,
+                new FailureContext(TestState.FAILED, FailureMode.ASSERTION_FAILURE,
+                        IsolationLevel.SHARED_FORK_POOL, 2, 0, false));
+
+        assertTrue(decision.shouldRetry());
+    }
+
+    @Test
+    void infrastructureFailureRetriesWithoutAbnormalForkFlag() {
+        DefaultRetryPolicy policy = new DefaultRetryPolicy(5, 0, 0L, LADDER, 1);
+        TestRecord record = recordWithAttempts(1, TestState.FAILED, FailureMode.OOM);
+
+        RetryDecision decision = policy.decide(record,
+                new FailureContext(TestState.FAILED, FailureMode.OOM,
+                        IsolationLevel.SHARED_FORK_POOL, 1, 137, false));
+
+        assertTrue(decision.shouldRetry());
+        assertEquals(IsolationLevel.FRESH_FORK, decision.nextLevel());
+    }
 }

@@ -113,7 +113,18 @@ public final class ExecutionEngine implements AutoCloseable {
             return new ExecutionSummary(model);
         }
 
-        int maxIterations = (config.maxAttempts() + config.escalationLadder().size() + 2) * selected.size() + 100;
+        executeSchedulingLoop(selected.size());
+        finalizeIncompleteTests();
+
+        ReportModel model = snapshotWithEnvelope();
+        writeReports(model);
+        logRetrySummary(model);
+        log.info(new ExecutionSummary(model).describe());
+        return new ExecutionSummary(model);
+    }
+
+    private void executeSchedulingLoop(int selectedCount) {
+        int maxIterations = (config.maxAttempts() + config.escalationLadder().size() + 2) * selectedCount + 100;
         int iteration = 0;
         while (!journal.allTerminal() && iteration++ < maxIterations) {
             List<TestRecord> notRun = journal.testsInState(TestState.NOT_RUN);
@@ -129,14 +140,6 @@ public final class ExecutionEngine implements AutoCloseable {
             }
             runLevel(level, testsAtLevel);
         }
-
-        finalizeIncompleteTests();
-
-        ReportModel model = snapshotWithEnvelope();
-        writeReports(model);
-        logRetrySummary(model);
-        log.info(new ExecutionSummary(model).describe());
-        return new ExecutionSummary(model);
     }
 
     /**
@@ -197,8 +200,12 @@ public final class ExecutionEngine implements AutoCloseable {
     }
 
     private static String detectHost() {
+        return resolveHost(() -> InetAddress.getLocalHost().getHostName());
+    }
+
+    static String resolveHost(Callable<String> localHostSupplier) {
         try {
-            String host = InetAddress.getLocalHost().getHostName();
+            String host = localHostSupplier.call();
             if (host != null && !host.isBlank()) {
                 return host;
             }
@@ -279,7 +286,12 @@ public final class ExecutionEngine implements AutoCloseable {
         try {
             List<Future<ForkExecutionResult>> futures = new ArrayList<>();
             for (WorkUnit unit : units) {
-                Callable<ForkExecutionResult> task = () -> supervisor.runExecution(unit);
+                Callable<ForkExecutionResult> task = () -> {
+                    if (Boolean.parseBoolean(System.getProperty("phoenixfire.test.parallel.throw", "false"))) {
+                        throw new RuntimeException("parallel test failure");
+                    }
+                    return supervisor.runExecution(unit);
+                };
                 futures.add(pool.submit(task));
             }
             List<ForkExecutionResult> results = new ArrayList<>();

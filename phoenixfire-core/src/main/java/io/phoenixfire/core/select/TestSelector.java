@@ -171,6 +171,9 @@ public final class TestSelector {
 
     /** Extract the method name from a JUnit Platform unique id, e.g. {@code [method:bar()]} -> {@code bar}. */
     static String methodNameOf(TestId id) {
+        if (id == null) {
+            return null;
+        }
         String uid = id.uniqueId();
         if (uid == null) {
             return null;
@@ -196,6 +199,9 @@ public final class TestSelector {
     }
 
     private static String displayMethodOf(TestId id) {
+        if (id == null) {
+            return null;
+        }
         String dn = id.displayName();
         if (dn == null) {
             return null;

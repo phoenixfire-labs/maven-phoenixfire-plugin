@@ -5,12 +5,14 @@ import io.phoenixfire.api.model.TestId;
 import io.phoenixfire.api.spi.IsolationContext;
 import io.phoenixfire.api.spi.WorkUnit;
 import io.phoenixfire.core.config.PhoenixfireConfiguration;
+import io.phoenixfire.core.testsupport.SpiTestClassLoader;
 import io.phoenixfire.core.util.PhoenixfireLogger;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class IsolationStrategiesTest {
@@ -44,10 +46,32 @@ class IsolationStrategiesTest {
     }
 
     @Test
+    void sharedPoolReturnsEmptyForNoTests() {
+        assertTrue(new SharedForkPoolStrategy().plan(List.of(), context).isEmpty());
+    }
+
+    @Test
+    void registryThrowsForMissingLevel() throws Exception {
+        var ctor = IsolationStrategyRegistry.class.getDeclaredConstructor();
+        ctor.setAccessible(true);
+        IsolationStrategyRegistry registry = ctor.newInstance();
+        assertThrows(IllegalStateException.class, () -> registry.forLevel(IsolationLevel.FRESH_FORK));
+    }
+
+    @Test
     void registryResolvesLevels() {
         IsolationStrategyRegistry registry = IsolationStrategyRegistry.createDefault(PhoenixfireLogger.console(), null);
         assertEquals(IsolationLevel.FRESH_FORK, registry.forLevel(IsolationLevel.FRESH_FORK).level());
         registry.register(new FreshForkStrategy());
         assertEquals(IsolationLevel.FRESH_FORK, registry.forLevel(IsolationLevel.FRESH_FORK).level());
+    }
+
+    @Test
+    void registryLoadsCustomStrategyFromSpi() throws Exception {
+        ClassLoader loader = SpiTestClassLoader.create(IsolationStrategyRegistry.class.getClassLoader());
+        IsolationStrategyRegistry registry = IsolationStrategyRegistry.createDefault(PhoenixfireLogger.console(), loader);
+        List<WorkUnit> units = registry.forLevel(IsolationLevel.FRESH_FORK).plan(
+                List.of(new TestId("x", "X", "x")), context);
+        assertEquals("custom-fresh", units.get(0).id());
     }
 }

@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -34,5 +35,29 @@ class ExecutionSummaryTest {
         failed.internalSetState(TestState.FAILED);
         ExecutionSummary hardFail = new ExecutionSummary(new ReportModel(List.of(failed), 0, 1));
         assertTrue(hardFail.shouldFailBuild(false));
+    }
+
+    @Test
+    void aggregatesCountsAndDescribe() {
+        TestRecord passed = new TestRecord(new TestId("p", "C", "p"));
+        passed.internalSetState(TestState.PASSED);
+        TestRecord failed = new TestRecord(new TestId("f", "C", "f"));
+        failed.internalSetState(TestState.FAILED);
+        TestRecord crashed = new TestRecord(new TestId("c", "C", "c"));
+        crashed.internalSetState(TestState.CRASHED);
+        TestRecord skipped = new TestRecord(new TestId("s", "C", "s"));
+        skipped.internalSetState(TestState.SKIPPED);
+
+        ReportModel model = new ReportModel(List.of(passed, failed, crashed, skipped), 0, 10);
+        ExecutionSummary summary = new ExecutionSummary(model);
+
+        assertEquals(4, summary.total());
+        assertEquals(1, summary.passed());
+        assertEquals(1, summary.failed());
+        assertEquals(1, summary.crashed());
+        assertEquals(1, summary.skipped());
+        assertTrue(summary.hasFailures());
+        assertTrue(summary.describe().contains("Tests run: 4"));
+        assertEquals(model, summary.reportModel());
     }
 }

@@ -16,6 +16,50 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class ApiModelTest {
 
     @Test
+    void testIdEqualsAndHashCode() {
+        TestId id = new TestId("uid", "Cls", "disp");
+        assertEquals("uid", id.uniqueId());
+        assertEquals("Cls", id.className());
+        assertEquals("disp", id.displayName());
+        assertEquals("uid".hashCode(), id.hashCode());
+        assertTrue(id.equals(id));
+        assertFalse(id.equals("not-a-test-id"));
+        assertFalse(id.equals(new TestId("other", "Cls", "disp")));
+        assertEquals(id, new TestId("uid", "other", "other"));
+    }
+
+    @Test
+    void executionAttemptExposesStartMillis() {
+        ExecutionAttempt a = ExecutionAttempt.builder()
+                .attemptNumber(1)
+                .startMillis(42)
+                .endMillis(50)
+                .outcome(TestState.PASSED)
+                .build();
+        assertEquals(1, a.attemptNumber());
+        assertEquals(IsolationLevel.SHARED_FORK_POOL, a.isolationLevel());
+        assertEquals(TestState.PASSED, a.outcome());
+        assertEquals(FailureMode.NONE, a.failureMode());
+        assertEquals(0, a.exitCode());
+        assertEquals(42, a.startMillis());
+        assertEquals(50, a.endMillis());
+        assertEquals(8L, a.durationMillis());
+        assertNull(a.forkId());
+        assertNull(a.throwableMessage());
+        assertNull(a.throwableStackTrace());
+    }
+
+    @Test
+    void executionAttemptDurationZeroWhenEndBeforeStart() {
+        ExecutionAttempt a = ExecutionAttempt.builder()
+                .startMillis(100)
+                .endMillis(50)
+                .outcome(TestState.PASSED)
+                .build();
+        assertEquals(0L, a.durationMillis());
+    }
+
+    @Test
     void testIdHandlesNullDisplayAndClassName() {
         TestId id = new TestId("uid", null, null);
         assertEquals("", id.className());
@@ -121,6 +165,31 @@ class ApiModelTest {
         viaPackage.setLastFailureMode(FailureMode.NONE);
         assertEquals(TestState.RUNNING, viaPackage.state());
         assertNull(new TestRecord(new TestId("u5", "C", "d")).lastAttempt());
+
+        TestRecord notRecovered = new TestRecord(new TestId("u6", "C", "d"));
+        notRecovered.internalAddAttempt(ExecutionAttempt.builder()
+                .attemptNumber(1).outcome(TestState.FAILED).build());
+        notRecovered.internalSetState(TestState.FAILED);
+        assertFalse(notRecovered.recovered());
+
+        TestRecord onlyPasses = new TestRecord(new TestId("u7", "C", "d"));
+        onlyPasses.internalAddAttempt(ExecutionAttempt.builder()
+                .attemptNumber(1).outcome(TestState.PASSED).build());
+        onlyPasses.internalSetState(TestState.PASSED);
+        assertFalse(onlyPasses.recovered());
+        assertNull(onlyPasses.firstFailLevel());
+        assertFalse(onlyPasses.everCrashed());
+
+        TestRecord sharedRecovery = new TestRecord(new TestId("u8", "C", "d"));
+        sharedRecovery.internalAddAttempt(ExecutionAttempt.builder()
+                .attemptNumber(1).isolationLevel(IsolationLevel.SHARED_FORK_POOL)
+                .outcome(TestState.FAILED).build());
+        sharedRecovery.internalAddAttempt(ExecutionAttempt.builder()
+                .attemptNumber(2).isolationLevel(IsolationLevel.SHARED_FORK_POOL)
+                .outcome(TestState.PASSED).build());
+        sharedRecovery.internalSetState(TestState.PASSED);
+        assertTrue(sharedRecovery.recovered());
+        assertFalse(sharedRecovery.forkReuseSensitive());
     }
 
     @Test

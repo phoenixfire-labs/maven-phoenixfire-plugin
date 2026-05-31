@@ -9,6 +9,18 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 class FailureSignaturesTest {
 
     @Test
+    void hashUsesSha256Digest() {
+        String sig = FailureSignatures.hash("normalized", "SHA-256");
+        assertNotNull(sig);
+        assertEquals(12, sig.length());
+    }
+
+    @Test
+    void hashFallsBackWhenAlgorithmMissing() {
+        assertEquals(Integer.toHexString("boom".hashCode()), FailureSignatures.hash("boom", "NO-SUCH-ALGO"));
+    }
+
+    @Test
     void returnsNullWhenNoText() {
         assertNull(FailureSignatures.of(null, null));
         assertNull(FailureSignatures.of("  ", ""));

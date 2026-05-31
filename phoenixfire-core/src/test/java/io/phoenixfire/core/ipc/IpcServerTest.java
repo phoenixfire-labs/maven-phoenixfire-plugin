@@ -13,6 +13,7 @@ import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.lang.reflect.Field;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -75,6 +76,47 @@ class IpcServerTest {
     }
 
     @Test
+    void survivesOnDisconnectedHandlerFailure() throws Exception {
+        server = new IpcServer(PhoenixfireLogger.console());
+        int port = server.start();
+        CountDownLatch disconnected = new CountDownLatch(1);
+        server.register("fork-1", new ForkSession() {
+            @Override
+            public String token() {
+                return "secret";
+            }
+
+            @Override
+            public void onConnected(ForkChannel channel) {
+            }
+
+            @Override
+            public void onMessage(Map<String, Object> message) {
+                throw new RuntimeException("boom");
+            }
+
+            @Override
+            public void onDisconnected() {
+                disconnected.countDown();
+                throw new RuntimeException("disconnect boom");
+            }
+        });
+
+        try (Socket socket = connect(port, "fork-1", "secret")) {
+            writeLine(socket, Map.of(IpcProtocol.FIELD_TYPE, IpcProtocol.MSG_HEARTBEAT));
+        }
+        assertTrue(disconnected.await(5, TimeUnit.SECONDS));
+    }
+
+    @Test
+    void stopSurvivesClosedServerSocket() throws Exception {
+        server = new IpcServer(PhoenixfireLogger.console());
+        server.start();
+        server.stop();
+        server.stop();
+    }
+
+    @Test
     void rejectsBadTokenAndMalformedHello() throws Exception {
         server = new IpcServer(PhoenixfireLogger.console());
         int port = server.start();
@@ -102,6 +144,248 @@ class IpcServerTest {
         }
         try (Socket socket = new Socket(InetAddress.getLoopbackAddress(), port)) {
             writeLine(socket, Map.of(IpcProtocol.FIELD_TYPE, "NOT_HELLO"));
+        }
+    }
+
+    @Test
+    void rejectsUnknownForkId() throws Exception {
+        server = new IpcServer(PhoenixfireLogger.console());
+        int port = server.start();
+        try (Socket socket = connect(port, "missing", "token")) {
+            // connection closed
+        }
+    }
+
+    @Test
+    void closesImmediatelyOnEmptyHello() throws Exception {
+        server = new IpcServer(PhoenixfireLogger.console());
+        int port = server.start();
+        try (Socket socket = new Socket(InetAddress.getLoopbackAddress(), port)) {
+            // no hello line
+        }
+    }
+
+    @Test
+    void survivesMalformedMessageLines() throws Exception {
+        server = new IpcServer(PhoenixfireLogger.console());
+        int port = server.start();
+        CountDownLatch disconnected = new CountDownLatch(1);
+        server.register("fork-1", new ForkSession() {
+            @Override
+            public String token() {
+                return "secret";
+            }
+
+            @Override
+            public void onConnected(ForkChannel channel) {
+            }
+
+            @Override
+            public void onMessage(Map<String, Object> message) {
+            }
+
+            @Override
+            public void onDisconnected() {
+                disconnected.countDown();
+            }
+        });
+
+        try (Socket socket = connect(port, "fork-1", "secret")) {
+            OutputStream out = socket.getOutputStream();
+            out.write("{not json}\n".getBytes(StandardCharsets.UTF_8));
+            out.flush();
+        }
+        assertTrue(disconnected.await(5, TimeUnit.SECONDS));
+    }
+
+    @Test
+    void acceptLoopSurvivesIoExceptionWhileRunning() throws Exception {
+        server = new IpcServer(PhoenixfireLogger.console());
+        Field runningField = IpcServer.class.getDeclaredField("running");
+        runningField.setAccessible(true);
+        Field socketField = IpcServer.class.getDeclaredField("serverSocket");
+        socketField.setAccessible(true);
+        ((java.util.concurrent.atomic.AtomicBoolean) runningField.get(server)).set(true);
+        socketField.set(server, new IoExceptionAcceptSocket());
+        java.lang.reflect.Method acceptLoop = IpcServer.class.getDeclaredMethod("acceptLoop");
+        acceptLoop.setAccessible(true);
+        Thread worker = new Thread(() -> {
+            try {
+                acceptLoop.invoke(server);
+            } catch (Exception ignored) {
+            }
+        });
+        worker.start();
+        Thread.sleep(300);
+        ((java.util.concurrent.atomic.AtomicBoolean) runningField.get(server)).set(false);
+        ((java.net.ServerSocket) socketField.get(server)).close();
+        worker.join(5_000);
+    }
+
+    @Test
+    void handleIgnoresCloseFailureOnWrappedSocket() throws Exception {
+        server = new IpcServer(PhoenixfireLogger.console());
+        Field socketField = IpcServer.class.getDeclaredField("serverSocket");
+        socketField.setAccessible(true);
+        socketField.set(server, new ThrowOnCloseAcceptSocket());
+        Field runningField = IpcServer.class.getDeclaredField("running");
+        runningField.setAccessible(true);
+        ((java.util.concurrent.atomic.AtomicBoolean) runningField.get(server)).set(true);
+        java.lang.reflect.Method acceptLoop = IpcServer.class.getDeclaredMethod("acceptLoop");
+        acceptLoop.setAccessible(true);
+        int port = ((java.net.ServerSocket) socketField.get(server)).getLocalPort();
+        CountDownLatch disconnected = new CountDownLatch(1);
+        server.register("fork-1", new ForkSession() {
+            @Override
+            public String token() {
+                return "secret";
+            }
+
+            @Override
+            public void onConnected(ForkChannel channel) {
+            }
+
+            @Override
+            public void onMessage(Map<String, Object> message) {
+            }
+
+            @Override
+            public void onDisconnected() {
+                disconnected.countDown();
+            }
+        });
+        Thread worker = new Thread(() -> {
+            try {
+                acceptLoop.invoke(server);
+            } catch (Exception ignored) {
+            }
+        });
+        worker.start();
+        try (Socket socket = connect(port, "fork-1", "secret")) {
+            socket.shutdownOutput();
+        }
+        assertTrue(disconnected.await(5, TimeUnit.SECONDS));
+        ((java.util.concurrent.atomic.AtomicBoolean) runningField.get(server)).set(false);
+        ((java.net.ServerSocket) socketField.get(server)).close();
+        worker.join(5_000);
+    }
+
+    @Test
+    void acceptLoopSurvivesClosedServerSocket() throws Exception {
+        server = new IpcServer(PhoenixfireLogger.console());
+        server.start();
+        Field socketField = IpcServer.class.getDeclaredField("serverSocket");
+        socketField.setAccessible(true);
+        ((java.net.ServerSocket) socketField.get(server)).close();
+        Thread.sleep(300);
+        server.stop();
+    }
+
+    @Test
+    void stopIgnoresServerSocketCloseFailure() throws Exception {
+        server = new IpcServer(PhoenixfireLogger.console());
+        server.start();
+        Field socketField = IpcServer.class.getDeclaredField("serverSocket");
+        socketField.setAccessible(true);
+        java.net.ServerSocket ss = (java.net.ServerSocket) socketField.get(server);
+        ss.close();
+        server.stop();
+    }
+
+    @Test
+    void handleIgnoresSocketCloseFailure() throws Exception {
+        server = new IpcServer(PhoenixfireLogger.console());
+        int port = server.start();
+        CountDownLatch disconnected = new CountDownLatch(1);
+        server.register("fork-1", new ForkSession() {
+            @Override
+            public String token() {
+                return "secret";
+            }
+
+            @Override
+            public void onConnected(ForkChannel channel) {
+            }
+
+            @Override
+            public void onMessage(Map<String, Object> message) {
+            }
+
+            @Override
+            public void onDisconnected() {
+                disconnected.countDown();
+            }
+        });
+
+        try (Socket socket = connect(port, "fork-1", "secret")) {
+            socket.shutdownOutput();
+        }
+        assertTrue(disconnected.await(5, TimeUnit.SECONDS));
+    }
+
+    @Test
+    void handleClosesRejectedConnections() throws Exception {
+        server = new IpcServer(PhoenixfireLogger.console());
+        int port = server.start();
+        CountDownLatch disconnected = new CountDownLatch(1);
+        server.register("fork-1", new ForkSession() {
+            @Override
+            public String token() {
+                return "secret";
+            }
+
+            @Override
+            public void onConnected(ForkChannel channel) {
+            }
+
+            @Override
+            public void onMessage(Map<String, Object> message) {
+            }
+
+            @Override
+            public void onDisconnected() {
+                disconnected.countDown();
+            }
+        });
+
+        try (Socket socket = connect(port, "fork-1", "secret")) {
+            socket.shutdownOutput();
+        }
+        assertTrue(disconnected.await(5, TimeUnit.SECONDS));
+    }
+
+    @Test
+    void forkChannelSendIsThreadSafe() throws Exception {
+        server = new IpcServer(PhoenixfireLogger.console());
+        int port = server.start();
+        CountDownLatch connected = new CountDownLatch(1);
+        AtomicReference<ForkChannel> channelRef = new AtomicReference<>();
+        server.register("fork-1", new ForkSession() {
+            @Override
+            public String token() {
+                return "secret";
+            }
+
+            @Override
+            public void onConnected(ForkChannel channel) {
+                channelRef.set(channel);
+                connected.countDown();
+            }
+
+            @Override
+            public void onMessage(Map<String, Object> message) {
+            }
+
+            @Override
+            public void onDisconnected() {
+            }
+        });
+
+        try (Socket socket = connect(port, "fork-1", "secret")) {
+            assertTrue(connected.await(5, TimeUnit.SECONDS));
+            ForkChannel channel = channelRef.get();
+            channel.send(Map.of(IpcProtocol.FIELD_TYPE, IpcProtocol.MSG_HEARTBEAT));
+            channel.close();
         }
     }
 

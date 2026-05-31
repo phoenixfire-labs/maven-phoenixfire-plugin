@@ -45,6 +45,14 @@ class JsonTest {
     }
 
     @Test
+    void encodesNonStandardTypesAsStrings() {
+        Map<String, Object> obj = new LinkedHashMap<>();
+        obj.put("uuid", java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"));
+        String encoded = Json.encode(obj);
+        assertTrue(encoded.contains("00000000-0000-0000-0000-000000000001"));
+    }
+
+    @Test
     void encodesControlCharactersAndUnknownTypes() {
         Map<String, Object> obj = new LinkedHashMap<>();
         obj.put("bell", "\u0007");
@@ -64,6 +72,7 @@ class JsonTest {
         assertEquals("true", Json.encode(true));
         assertEquals("42", Json.encode(42));
         assertEquals("3.14", Json.encode(3.14));
+        assertEquals("\"z\"", Json.encode('z'));
 
         Object parsed = Json.parse("3.14");
         assertEquals(3.14, parsed);
@@ -116,5 +125,47 @@ class JsonTest {
         assertTrue(encoded.contains("\\r"));
         assertTrue(encoded.contains("\\b"));
         assertTrue(encoded.contains("\\f"));
+    }
+
+    @Test
+    void parserHandlesUnexpectedEndInStructures() {
+        assertThrows(Json.JsonException.class, () -> Json.parse("{\"a\":"));
+        assertThrows(Json.JsonException.class, () -> Json.parse("[1"));
+        assertThrows(Json.JsonException.class, () -> Json.parse("{\"a\":1,"));
+        assertThrows(Json.JsonException.class, () -> Json.parse("[1,"));
+    }
+
+    @Test
+    void parserRejectsInvalidLiteralsAndNumbers() {
+        assertThrows(Json.JsonException.class, () -> Json.parse("nope"));
+        assertThrows(Json.JsonException.class, () -> Json.parse("tru"));
+        assertThrows(Json.JsonException.class, () -> Json.parse("nul"));
+        assertThrows(NumberFormatException.class, () -> Json.parse("."));
+        assertThrows(NumberFormatException.class, () -> Json.parse("--1"));
+    }
+
+    @Test
+    void parserAcceptsScientificNotation() {
+        assertEquals(1.5e3, Json.parse("1.5e3"));
+        assertEquals(2.0, Json.parse("2E0"));
+    }
+
+    @Test
+    void parserFallsBackLongToDouble() {
+        Object value = Json.parse("9223372036854775808");
+        assertInstanceOf(Double.class, value);
+    }
+
+    @Test
+    void parserDecodesAdditionalEscapes() {
+        Map<String, Object> parsed = Json.parseObject("{\"x\":\"\\r\\b\\f\"}");
+        assertEquals("\r\b\f", parsed.get("x"));
+    }
+
+    @Test
+    void parserExpectsMatchingDelimiters() {
+        assertThrows(Json.JsonException.class, () -> Json.parse("{\"a\":1]"));
+        assertThrows(Json.JsonException.class, () -> Json.parse("[1}"));
+        assertThrows(Json.JsonException.class, () -> Json.parse("{"));
     }
 }

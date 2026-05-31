@@ -25,6 +25,25 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class ForkIpcClientTest {
 
     @Test
+    void closeIgnoresIoErrors() throws Exception {
+        try (ServerSocket serverSocket = new ServerSocket(0, 1, InetAddress.getLoopbackAddress())) {
+            int port = serverSocket.getLocalPort();
+            CountDownLatch hello = new CountDownLatch(1);
+            Thread accept = new Thread(() -> acceptHello(serverSocket, hello), "accept");
+            accept.setDaemon(true);
+            accept.start();
+
+            ForkIpcClient client = new ForkIpcClient(port, "f", "t");
+            assertTrue(hello.await(5, TimeUnit.SECONDS));
+            var socketField = ForkIpcClient.class.getDeclaredField("socket");
+            socketField.setAccessible(true);
+            Socket real = (Socket) socketField.get(client);
+            socketField.set(client, new ThrowOnCloseSocket(real));
+            client.close();
+        }
+    }
+
+    @Test
     void helloHandshakeAndMessaging() throws Exception {
         try (ServerSocket serverSocket = new ServerSocket(0, 1, InetAddress.getLoopbackAddress())) {
             int port = serverSocket.getLocalPort();
@@ -36,6 +55,20 @@ class ForkIpcClientTest {
             try (ForkIpcClient client = new ForkIpcClient(port, "fork-a", "tok")) {
                 assertTrue(hello.await(5, TimeUnit.SECONDS));
                 client.send(Map.of(IpcProtocol.FIELD_TYPE, IpcProtocol.MSG_HEARTBEAT));
+            }
+        }
+    }
+
+    @Test
+    void readMessageReturnsNullWhenConnectionCloses() throws Exception {
+        try (ServerSocket serverSocket = new ServerSocket(0, 1, InetAddress.getLoopbackAddress())) {
+            int port = serverSocket.getLocalPort();
+            Thread accept = new Thread(() -> acceptAndClose(serverSocket), "accept");
+            accept.setDaemon(true);
+            accept.start();
+
+            try (ForkIpcClient client = new ForkIpcClient(port, "f", "t")) {
+                assertEquals(null, client.readMessage());
             }
         }
     }
@@ -53,6 +86,16 @@ class ForkIpcClientTest {
                 assertNotNull(cmd);
                 assertEquals(IpcProtocol.MSG_EXECUTE, cmd.get(IpcProtocol.FIELD_TYPE));
             }
+        }
+    }
+
+    private static void acceptAndClose(ServerSocket serverSocket) {
+        try (Socket socket = serverSocket.accept()) {
+            BufferedReader in = new BufferedReader(
+                    new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
+            in.readLine();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
     }
 

@@ -8,9 +8,10 @@ import java.util.Map;
  * branch, CI build coordinates, the Maven project identity, and arbitrary user labels.
  *
  * <p>This is the "bring your own" half of the run envelope. The Maven layer populates it from
- * neutral, vendor-agnostic overrides ({@code -Dphoenixfire.git.sha=...}) with an optional local
- * {@code git} fallback, so no specific CI vendor is assumed. Every field is optional; unset fields are
- * simply omitted from reports.
+ * neutral, vendor-agnostic overrides ({@code -Dphoenixfire.git.sha=...} and plugin
+ * {@code <configuration>}, including {@code ${env.*}} mappings in the consumer POM). No
+ * {@code git} subprocess is invoked. Every field is optional; unset fields are simply omitted from
+ * reports.
  */
 public final class RunMetadata {
 

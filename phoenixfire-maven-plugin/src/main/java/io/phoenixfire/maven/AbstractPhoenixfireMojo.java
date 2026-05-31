@@ -153,15 +153,19 @@ public abstract class AbstractPhoenixfireMojo extends AbstractMojo {
     @Parameter(property = "maven.test.skip", defaultValue = "false")
     protected boolean mavenTestSkip;
 
-    // --- Run-envelope metadata (vendor-agnostic; overrides win, optional local git fallback) ---
+    // --- Run-envelope metadata (vendor-agnostic; supplied via -D properties and/or plugin <configuration>) ---
 
-    /** Git commit SHA for the run envelope. Maps your CI's variable here, e.g. {@code -Dphoenixfire.git.sha=$GITHUB_SHA}. */
+    /** Git commit SHA for the run envelope, e.g. {@code -Dphoenixfire.git.sha=$GITHUB_SHA}. */
     @Parameter(property = "phoenixfire.git.sha")
     protected String gitSha;
 
     /** Git branch for the run envelope, e.g. {@code -Dphoenixfire.git.branch=$GITHUB_REF_NAME}. */
     @Parameter(property = "phoenixfire.git.branch")
     protected String gitBranch;
+
+    /** Whether the working tree was dirty ({@code true} / {@code false}); omitted when unset. */
+    @Parameter(property = "phoenixfire.git.dirty")
+    protected Boolean gitDirty;
 
     /** CI provider label for the run envelope (free-form), e.g. {@code github}, {@code gitlab}. */
     @Parameter(property = "phoenixfire.ci.provider")
@@ -174,10 +178,6 @@ public abstract class AbstractPhoenixfireMojo extends AbstractMojo {
     /** CI build URL for the run envelope. */
     @Parameter(property = "phoenixfire.ci.buildUrl")
     protected String ciBuildUrl;
-
-    /** Attempt a local {@code git} fallback for commit/branch/dirty when not supplied via overrides. */
-    @Parameter(property = "phoenixfire.collectGitMetadata", defaultValue = "true")
-    protected boolean collectGitMetadata;
 
     /** Arbitrary user labels added to the run envelope (e.g. {@code service}, {@code team}). */
     @Parameter
@@ -281,6 +281,7 @@ public abstract class AbstractPhoenixfireMojo extends AbstractMojo {
         RunMetadataFactory.Overrides overrides = new RunMetadataFactory.Overrides();
         overrides.gitSha = gitSha;
         overrides.gitBranch = gitBranch;
+        overrides.gitDirty = gitDirty;
         overrides.ciProvider = ciProvider;
         overrides.ciBuildId = ciBuildId;
         overrides.ciBuildUrl = ciBuildUrl;
@@ -288,7 +289,7 @@ public abstract class AbstractPhoenixfireMojo extends AbstractMojo {
         overrides.artifactId = project.getArtifactId();
         overrides.version = project.getVersion();
         overrides.labels = runLabels == null ? Map.of() : runLabels;
-        return RunMetadataFactory.build(overrides, project.getBasedir(), collectGitMetadata);
+        return RunMetadataFactory.build(overrides);
     }
 
     private List<String> buildForkClasspath() throws MojoExecutionException {
@@ -397,11 +398,15 @@ public abstract class AbstractPhoenixfireMojo extends AbstractMojo {
         return value != null ? value : System.getProperty(name);
     }
 
-    private URLClassLoader createSpiClassLoader(List<String> classpath) throws MojoExecutionException {
+    protected URLClassLoader createSpiClassLoader(List<String> classpath) throws MojoExecutionException {
         List<URL> urls = new ArrayList<>();
         for (String entry : classpath) {
             try {
-                urls.add(new File(entry).toURI().toURL());
+                if (entry.contains("://")) {
+                    urls.add(new java.net.URL(entry));
+                } else {
+                    urls.add(new File(entry).toURI().toURL());
+                }
             } catch (MalformedURLException e) {
                 throw new MojoExecutionException("Bad classpath entry: " + entry, e);
             }

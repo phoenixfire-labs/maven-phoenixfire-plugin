@@ -5,6 +5,7 @@ import io.phoenixfire.core.ipc.IpcServer;
 import io.phoenixfire.core.journal.ExecutionJournal;
 import io.phoenixfire.core.supervisor.DefaultFailureClassifier;
 import io.phoenixfire.core.supervisor.ForkSupervisor;
+import io.phoenixfire.core.testsupport.SimulatedFork;
 import io.phoenixfire.core.testsupport.SimulatedForkLauncher;
 import io.phoenixfire.core.util.PhoenixfireLogger;
 import org.junit.jupiter.api.AfterEach;
@@ -46,6 +47,21 @@ class DiscoveryServiceTest {
         int port = ipcServerPort();
         ForkSupervisor supervisor = new ForkSupervisor(config, ipcServer,
                 new SimulatedForkLauncher(config, port, io.phoenixfire.core.testsupport.SimulatedFork.MODE_DISCOVER),
+                new ExecutionJournal(PhoenixfireLogger.console()),
+                new DefaultFailureClassifier(), PhoenixfireLogger.console(), tempDir.resolve("forks"));
+        DiscoveryService service = new DiscoveryService(supervisor, PhoenixfireLogger.console());
+        assertEquals(2, service.discover().size());
+    }
+
+    @Test
+    void logsUncleanDiscovery() throws Exception {
+        PhoenixfireConfiguration config = PhoenixfireConfiguration.builder()
+                .classpath(List.of())
+                .reportsDirectory(tempDir.toFile())
+                .build();
+        int port = ipcServerPort();
+        ForkSupervisor supervisor = new ForkSupervisor(config, ipcServer,
+                new SimulatedForkLauncher(config, port, SimulatedFork.MODE_NO_BYE),
                 new ExecutionJournal(PhoenixfireLogger.console()),
                 new DefaultFailureClassifier(), PhoenixfireLogger.console(), tempDir.resolve("forks"));
         DiscoveryService service = new DiscoveryService(supervisor, PhoenixfireLogger.console());

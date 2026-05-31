@@ -22,6 +22,36 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class ReportWritersTest {
 
     @Test
+    void writersIncludeGitCiAndProjectMetadata(@TempDir Path dir) throws Exception {
+        RunEnvelope envelope = RunEnvelope.builder()
+                .runId("run-1")
+                .metadata(RunMetadata.builder()
+                        .gitSha("abc")
+                        .gitBranch("main")
+                        .gitDirty(true)
+                        .ciProvider("github")
+                        .ciBuildId("99")
+                        .ciBuildUrl("https://ci.example/99")
+                        .projectGroupId("g")
+                        .projectArtifactId("a")
+                        .projectVersion("1.0")
+                        .build())
+                .build();
+        ReportModel model = new ReportModel(List.of(), 0, 1, envelope);
+
+        new NativeJsonReportWriter().write(model, dir);
+        new JsonLinesReportWriter().write(model, dir);
+
+        String json = Files.readString(dir.resolve("phoenixfire-report.json"), StandardCharsets.UTF_8);
+        assertTrue(json.contains("\"dirty\":true"));
+        assertTrue(json.contains("\"provider\":\"github\""));
+        assertTrue(json.contains("\"groupId\":\"g\""));
+
+        String jsonl = Files.readString(dir.resolve("phoenixfire-facts.jsonl"), StandardCharsets.UTF_8);
+        assertTrue(jsonl.contains("\"gitDirty\":true"));
+    }
+
+    @Test
     void writersEmitAllFormats(@TempDir Path dir) throws Exception {
         TestRecord passed = record("u1", "com.Foo", "ok", TestState.PASSED, null);
         TestRecord failed = record("u2", "", "fail", TestState.FAILED, FailureMode.ASSERTION_FAILURE);
@@ -49,6 +79,53 @@ class ReportWritersTest {
         String jsonl = Files.readString(dir.resolve("phoenixfire-facts.jsonl"), StandardCharsets.UTF_8);
         assertTrue(jsonl.contains("\"type\":\"run\""));
         assertTrue(jsonl.contains("\"type\":\"test_attempt\""));
+    }
+
+    @Test
+    void writersHandleEmptyModel(@TempDir Path dir) throws Exception {
+        ReportModel empty = new ReportModel(List.of(), 0, 0);
+        new JUnitXmlReportWriter().write(empty, dir);
+        new NativeJsonReportWriter().write(empty, dir);
+        new JsonLinesReportWriter().write(empty, dir);
+        assertTrue(Files.exists(dir.resolve("phoenixfire-report.json")));
+    }
+
+    @Test
+    void junitXmlRendersSkippedWithAndWithoutMessage(@TempDir Path dir) throws Exception {
+        TestRecord bareSkip = new TestRecord(new TestId("u1", "com.Foo", "skipBare"));
+        bareSkip.internalAddAttempt(ExecutionAttempt.builder()
+                .attemptNumber(1).isolationLevel(IsolationLevel.SHARED_FORK_POOL)
+                .outcome(TestState.SKIPPED).failureMode(FailureMode.NONE)
+                .startMillis(0).endMillis(1).build());
+        bareSkip.internalSetState(TestState.SKIPPED);
+        TestRecord withMsg = new TestRecord(new TestId("u2", "com.Foo", "skipMsg"));
+        withMsg.internalAddAttempt(ExecutionAttempt.builder()
+                .attemptNumber(1).isolationLevel(IsolationLevel.SHARED_FORK_POOL)
+                .outcome(TestState.SKIPPED).failureMode(FailureMode.NONE)
+                .throwableMessage("reason").startMillis(0).endMillis(1).build());
+        withMsg.internalSetState(TestState.SKIPPED);
+
+        TestRecord crashedEmptyStack = new TestRecord(new TestId("u3", "com.Bar", "crash"));
+        crashedEmptyStack.internalAddAttempt(ExecutionAttempt.builder()
+                .attemptNumber(1).isolationLevel(IsolationLevel.SHARED_FORK_POOL)
+                .outcome(TestState.CRASHED).failureMode(FailureMode.SIGKILL)
+                .throwableMessage("boom").throwableStackTrace("")
+                .startMillis(0).endMillis(1).build());
+        crashedEmptyStack.internalSetState(TestState.CRASHED);
+
+        TestRecord noAttempts = new TestRecord(new TestId("u4", "com.Qux", "empty"));
+        noAttempts.internalSetState(TestState.RUNNING);
+
+        ReportModel model = new ReportModel(
+                List.of(bareSkip, withMsg, crashedEmptyStack, noAttempts), 0, 5, null);
+        new JUnitXmlReportWriter().write(model, dir);
+        String xml = Files.readString(dir.resolve("TEST-com.Foo.xml"), StandardCharsets.UTF_8);
+        assertTrue(xml.contains("<skipped/>"));
+        assertTrue(xml.contains("reason"));
+        String barXml = Files.readString(dir.resolve("TEST-com.Bar.xml"), StandardCharsets.UTF_8);
+        assertTrue(barXml.contains("boom"));
+        String quxXml = Files.readString(dir.resolve("TEST-com.Qux.xml"), StandardCharsets.UTF_8);
+        assertTrue(quxXml.contains("INCOMPLETE"));
     }
 
     private static TestRecord record(String uid, String className, String display, TestState state,

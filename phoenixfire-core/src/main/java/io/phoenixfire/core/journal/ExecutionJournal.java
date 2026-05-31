@@ -12,7 +12,6 @@ import io.phoenixfire.core.util.PhoenixfireLogger;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -294,11 +293,8 @@ public final class ExecutionJournal {
     }
 
     /** Convenience for callers that prefer unchecked IO semantics. */
+    /** Same as {@link #enableJournalFile(Path)}; errors are logged and never propagated. */
     public void enableJournalFileUnchecked(Path path) {
-        try {
-            enableJournalFile(path);
-        } catch (UncheckedIOException e) {
-            log.warn("Journal file disabled: " + e.getMessage());
-        }
+        enableJournalFile(path);
     }
 }

@@ -93,6 +93,17 @@ class ShardingTest {
     void validateRejectsOutOfRangeIndex() {
         assertThrows(IllegalArgumentException.class, () -> Sharding.of(0, 3).validate());
         assertThrows(IllegalArgumentException.class, () -> Sharding.of(4, 3).validate());
+        assertThrows(IllegalArgumentException.class, () -> Sharding.of(1, 0).validate());
         Sharding.of(3, 3).validate();
+    }
+
+    @Test
+    void usesUniqueIdWhenClassNameMissing() {
+        TestId bare = new TestId("uid-only", null, "m");
+        List<TestId> suite = List.of(bare, test("com.A", "a"));
+        List<TestId> shard = Sharding.of(1, 2).partition(suite);
+        assertEquals(1, shard.size());
+        assertEquals(1, Sharding.of(1, 2).index());
+        assertEquals(2, Sharding.of(1, 2).count());
     }
 }
