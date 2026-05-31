@@ -15,6 +15,8 @@ How this repository is built, tested, and published. For using Phoenixfire in yo
 
 Versioning uses Maven **CI-friendly `${revision}`** ([docs](https://maven.apache.org/maven-ci-friendly.html)). Release versions come from Git tags (`v*`), not manual POM edits at release time.
 
+**JUnit:** the reactor uses the **JUnit 6.0.3** BOM (`${junit.version}`). Invoker ITs exercise **6.0.3** and one legacy **5.10.2** consumer (`all-passing`). User-facing compatibility: [COMPATIBILITY.md](COMPATIBILITY.md).
+
 ## JDK policy
 
 - **Published bytecode:** Java **17** (`maven.compiler.release=17`), single coordinate set `io.github.phoenixfire-labs:*`.

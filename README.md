@@ -39,10 +39,14 @@ is restarting terminated forks with configurable retry logic.
 
 - Java **17+** on the machine running Maven (plugin bytecode is Java 17; runs on newer JDKs).
 - Maven **3.6.3+**
-- JUnit **5** (JUnit Platform). JUnit 4 tests run via the JUnit Vintage engine if present.
+- Tests executed via **JUnit Platform** — typically **JUnit Jupiter** (`junit-jupiter` or a BOM such as
+  Spring Boot’s test starter). **JUnit 4** works when **`junit-vintage-engine`** is on the test classpath.
 
 Test **forks** use the JDK configured for the project under test (Maven `java` / toolchain), not the
 JDK running Maven.
+
+**Not supported:** TestNG and other non–JUnit Platform runners. See [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md)
+for supported stacks (Jupiter 5.x/6.x, Vintage, classpath behavior).
 
 ## Installation
 
@@ -278,6 +282,7 @@ tool can slice without a join. Notable fields:
 
 | Doc | Audience |
 |-----|----------|
+| [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md) | Supported test frameworks (Platform / Jupiter / Vintage) |
 | [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | Contributors: CI, local build, release, JDK policy |
 | [docs/COVERAGE.md](docs/COVERAGE.md) | JaCoCo gate (opt-in `-Pcoverage`) |
 | [docs/MAVEN-CENTRAL.md](docs/MAVEN-CENTRAL.md) | Publishing to Maven Central |
@@ -285,7 +290,7 @@ tool can slice without a join. Notable fields:
 
 ## Status
 
-MVP. JUnit 5 Platform only.
+MVP. JUnit Platform (JUnit Jupiter; JUnit 4 via Vintage).
 
 ## Trademarks
 

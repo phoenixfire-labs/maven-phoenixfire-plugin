@@ -53,8 +53,8 @@
         <revision>0.1.1-SNAPSHOT</revision>
         <phoenixfire.version>${revision}</phoenixfire.version>
 
-        <junit.platform.version>1.10.2</junit.platform.version>
-        <junit.jupiter.version>5.10.2</junit.jupiter.version>
+        <!-- Unified JUnit 6 BOM (Platform + Jupiter + Vintage). Consumers may use JUnit 5.x or 6.x on the test classpath. -->
+        <junit.version>6.0.3</junit.version>
         <maven.api.version>3.9.6</maven.api.version>
         <maven.plugin.tools.version>3.13.1</maven.plugin.tools.version>
 
@@ -97,7 +97,7 @@
             <dependency>
                 <groupId>org.junit</groupId>
                 <artifactId>junit-bom</artifactId>
-                <version>${junit.jupiter.version}</version>
+                <version>${junit.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>

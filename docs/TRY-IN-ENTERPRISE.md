@@ -4,6 +4,9 @@ Use this when pointing Phoenixfire at a large or messy corporate test suite.
 
 ## 1. Add the plugin (Maven Central)
 
+Keep your existing **JUnit Jupiter** (or Spring Boot test) dependencies — Phoenixfire only replaces the
+Maven test **runner**. See [COMPATIBILITY.md](COMPATIBILITY.md).
+
 No extra repository when using a **released** version from Central:
 
 ```xml
