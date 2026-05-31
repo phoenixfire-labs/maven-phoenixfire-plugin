@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>io.github.benmanifold</groupId>
+        <groupId>io.github.phoenixfire-labs</groupId>
         <artifactId>phoenixfire</artifactId>
         <version>${revision}</version>
     </parent>
@@ -16,7 +16,7 @@
 
     <dependencies>
         <dependency>
-            <groupId>io.github.benmanifold</groupId>
+            <groupId>io.github.phoenixfire-labs</groupId>
             <artifactId>phoenixfire-api</artifactId>
         </dependency>
         <dependency>
@@ -30,7 +30,7 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>io.github.benmanifold</groupId>
+            <groupId>io.github.phoenixfire-labs</groupId>
             <artifactId>phoenixfire-core</artifactId>
             <scope>test</scope>
         </dependency>

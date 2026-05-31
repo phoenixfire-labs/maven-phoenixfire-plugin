@@ -139,7 +139,7 @@ class AbstractPhoenixfireMojoTest {
         MojoTestReflection.setField(mojo, "project", project);
         MojoTestReflection.setField(mojo, "reportsDir", tempDir.resolve("reports").toFile());
         MojoTestReflection.setField(mojo, "pluginArtifacts",
-                List.of(pluginArtifact("io.github.benmanifold", "phoenixfire-core", jar)));
+                List.of(pluginArtifact("io.github.phoenixfire-labs", "phoenixfire-core", jar)));
         assertEquals(1, mojo.exposeBuildConfiguration().classpath().stream()
                 .filter(p -> p.equals(jar.getAbsolutePath())).count());
     }
@@ -292,7 +292,7 @@ class AbstractPhoenixfireMojoTest {
         DefaultArtifact skipped = pluginArtifact("other.group", "ignored", pluginJar);
         skipped.setFile(null);
         List<Artifact> artifacts = List.of(
-                pluginArtifact("io.github.benmanifold", "phoenixfire-core", pluginJar),
+                pluginArtifact("io.github.phoenixfire-labs", "phoenixfire-core", pluginJar),
                 pluginArtifact("org.junit.platform", "junit-platform-launcher", junitJar),
                 skipped);
         MojoTestReflection.setField(mojo, "pluginArtifacts", artifacts);

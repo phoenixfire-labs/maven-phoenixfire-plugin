@@ -4,14 +4,14 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>io.github.benmanifold</groupId>
+    <groupId>io.github.phoenixfire-labs</groupId>
     <artifactId>phoenixfire</artifactId>
     <version>${revision}</version>
     <packaging>pom</packaging>
 
     <name>Phoenixfire</name>
     <description>Fault-tolerant test orchestration for Maven: a resilient supervisory replacement for Surefire/Failsafe.</description>
-    <url>https://github.com/BenManifold/maven-phoenixfire-plugin</url>
+    <url>https://github.com/phoenixfire-labs/maven-phoenixfire-plugin</url>
 
     <licenses>
         <license>
@@ -29,9 +29,9 @@
     </developers>
 
     <scm>
-        <connection>scm:git:https://github.com/BenManifold/maven-phoenixfire-plugin.git</connection>
-        <developerConnection>scm:git:https://github.com/BenManifold/maven-phoenixfire-plugin.git</developerConnection>
-        <url>https://github.com/BenManifold/maven-phoenixfire-plugin</url>
+        <connection>scm:git:https://github.com/phoenixfire-labs/maven-phoenixfire-plugin.git</connection>
+        <developerConnection>scm:git:https://github.com/phoenixfire-labs/maven-phoenixfire-plugin.git</developerConnection>
+        <url>https://github.com/phoenixfire-labs/maven-phoenixfire-plugin</url>
         <tag>HEAD</tag>
     </scm>
 
@@ -69,25 +69,27 @@
         <maven-gpg-plugin.version>3.2.7</maven-gpg-plugin.version>
         <central-publishing-maven-plugin.version>0.9.0</central-publishing-maven-plugin.version>
         <jacoco-maven-plugin.version>0.8.12</jacoco-maven-plugin.version>
+        <!-- JaCoCo off by default; enable with -Pcoverage or -Djacoco.skip=false (CI uses -Pcoverage). -->
+        <jacoco.skip>true</jacoco.skip>
 
         <!-- GitHub Packages registry for this repository (override for forks). -->
-        <github.repository>BenManifold/maven-phoenixfire-plugin</github.repository>
+        <github.repository>phoenixfire-labs/maven-phoenixfire-plugin</github.repository>
     </properties>
 
     <dependencyManagement>
         <dependencies>
             <dependency>
-                <groupId>io.github.benmanifold</groupId>
+                <groupId>io.github.phoenixfire-labs</groupId>
                 <artifactId>phoenixfire-api</artifactId>
                 <version>${phoenixfire.version}</version>
             </dependency>
             <dependency>
-                <groupId>io.github.benmanifold</groupId>
+                <groupId>io.github.phoenixfire-labs</groupId>
                 <artifactId>phoenixfire-fork-runner</artifactId>
                 <version>${phoenixfire.version}</version>
             </dependency>
             <dependency>
-                <groupId>io.github.benmanifold</groupId>
+                <groupId>io.github.phoenixfire-labs</groupId>
                 <artifactId>phoenixfire-core</artifactId>
                 <version>${phoenixfire.version}</version>
             </dependency>
@@ -168,6 +170,9 @@
                     <groupId>org.jacoco</groupId>
                     <artifactId>jacoco-maven-plugin</artifactId>
                     <version>${jacoco-maven-plugin.version}</version>
+                    <configuration>
+                        <skip>${jacoco.skip}</skip>
+                    </configuration>
                     <executions>
                         <execution>
                             <id>prepare-agent</id>
@@ -222,6 +227,40 @@
     </build>
 
     <profiles>
+        <!-- No coverage exec files when Surefire is skipped; avoid phoenixfire-coverage verify failure. -->
+        <profile>
+            <id>skip-jacoco-with-skipTests</id>
+            <activation>
+                <property>
+                    <name>skipTests</name>
+                    <value>true</value>
+                </property>
+            </activation>
+            <properties>
+                <jacoco.skip>true</jacoco.skip>
+            </properties>
+        </profile>
+        <profile>
+            <id>skip-jacoco-with-maven-test-skip</id>
+            <activation>
+                <property>
+                    <name>maven.test.skip</name>
+                    <value>true</value>
+                </property>
+            </activation>
+            <properties>
+                <jacoco.skip>true</jacoco.skip>
+            </properties>
+        </profile>
+
+        <!-- Opt-in: 95% line / 90% branch aggregate gate (phoenixfire-coverage). -->
+        <profile>
+            <id>coverage</id>
+            <properties>
+                <jacoco.skip>false</jacoco.skip>
+            </properties>
+        </profile>
+
         <!-- GitHub Packages deploy (publish.yml / publish-snapshot.yml). -->
         <profile>
             <id>github-packages</id>
@@ -239,7 +278,7 @@
             </distributionManagement>
         </profile>
 
-        <!-- Maven Central via https://central.sonatype.com (namespace io.github.benmanifold). -->
+        <!-- Maven Central via https://central.sonatype.com (namespace io.github.phoenixfire-labs). -->
         <profile>
             <id>central</id>
             <build>

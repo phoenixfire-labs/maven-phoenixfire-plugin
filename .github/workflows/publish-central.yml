@@ -1,6 +1,6 @@
 name: Publish to Maven Central
 
-# Same triggers as GitHub Packages release; deploys io.github.benmanifold:* to Central.
+# Same triggers as GitHub Packages release; deploys io.github.phoenixfire-labs:* to Central.
 on:
   release:
     types: [published]

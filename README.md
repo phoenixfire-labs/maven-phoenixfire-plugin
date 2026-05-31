@@ -12,9 +12,9 @@ corrupted: execution can terminate prematurely, retries may run in a poisoned JV
 report can be incomplete. Phoenixfire detects these failures, escalates isolation, and accounts for
 every test.
 
-The fork is assumed to be an unreliable worker process whose state must be monitored, accounted for, 
-and recovered from. Result visiblity as an actional fact-table is a first class consideration, and so 
-is restarting terminated forks with configurable retry logic and more. 
+The fork is assumed to be an unreliable worker process whose state must be monitored, accounted for,
+and recovered from. Result visibility as an actionable fact-table is a first-class consideration, as
+is restarting terminated forks with configurable retry logic.
 
 ## How it works
 
@@ -35,33 +35,32 @@ is restarting terminated forks with configurable retry logic and more.
   audit trail (every attempt, failure mode, escalation path). Tests that can never complete are
   forced to a terminal `CRASHED` state so nothing is silently lost.
 
-## Modules
-
-- `phoenixfire-api` - stable model + extension SPIs + IPC contract (zero external dependencies).
-- `phoenixfire-fork-runner` - lightweight in-fork worker (JUnit Platform Launcher + IPC client).
-- `phoenixfire-core` - controller engine (discovery, journal, scheduler, supervisor, retry, reports).
-- `phoenixfire-maven-plugin` - the Maven plugin binding goals to lifecycle phases.
-
 ## Requirements
 
-- Java 17+
-- Maven 3.6.3+
-- JUnit 5 (JUnit Platform). JUnit 4 tests run transparently via the JUnit Vintage engine if present.
+- Java **17+** on the machine running Maven (plugin bytecode is Java 17; runs on newer JDKs).
+- Maven **3.6.3+**
+- JUnit **5** (JUnit Platform). JUnit 4 tests run via the JUnit Vintage engine if present.
 
-### JDK 17 vs 21 in CI
+Test **forks** use the JDK configured for the project under test (Maven `java` / toolchain), not the
+JDK running Maven.
 
-**Pull requests** run the [Build workflow](.github/workflows/build.yml) (unit tests, Invoker ITs, JaCoCo gate) on JDK 17 and 21—require it as a branch protection check before merge. **Pushes to `main`** run only [publish-snapshot](.github/workflows/publish-snapshot.yml) (compile and deploy, no tests). **Releases** use the publish workflows the same way (deploy only).
+## Installation
 
-Publish builds once on JDK 17. There is a single set
-of published artifacts (`io.github.benmanifold:*`), compiled with `maven.compiler.release` **17** (Java 17
-bytecode). You do **not** publish separate coordinates per JDK.
+Released builds are on Maven Central under **`io.github.phoenixfire-labs`**:
+
+```xml
+<plugin>
+  <groupId>io.github.phoenixfire-labs</groupId>
+  <artifactId>phoenixfire-maven-plugin</artifactId>
+  <version>0.1.0</version>
+</plugin>
+```
+
 
 - **Consumer on JDK 17** — supported (baseline).
 - **Consumer on JDK 21** — supported; the JVM runs Java 17 bytecode without a separate plugin build.
 
-Test **forks** use the JDK configured for the project under test (Maven `java` / toolchain), not the
-JDK used to compile Phoenixfire. The matrix only proves the plugin runs correctly when Maven itself
-is on 17 or 21.
+To trial on a large existing codebase: [docs/TRY-IN-ENTERPRISE.md](docs/TRY-IN-ENTERPRISE.md).
 
 ## Usage: opt-in full replacement of Surefire/Failsafe
 
@@ -89,7 +88,7 @@ Disable the built-in Surefire/Failsafe executions and bind Phoenixfire to `test`
 
     <!-- Run tests with Phoenixfire instead. -->
     <plugin>
-      <groupId>io.github.benmanifold</groupId>
+      <groupId>io.github.phoenixfire-labs</groupId>
       <artifactId>phoenixfire-maven-plugin</artifactId>
       <version>0.1.0</version>
       <executions>
@@ -209,20 +208,6 @@ fail the build.
 Set `failOnFlakyTests` (`-Dphoenixfire.failOnFlakyTests=true`) to also fail the build on any test
 that needed a retry to pass. Either way, flaky tests are always logged and recorded in the reports.
 
-## Code coverage
-
-JaCoCo enforces **95% line and 90% branch coverage** on `phoenixfire-api`, `phoenixfire-core`,
-`phoenixfire-fork-runner`, and `phoenixfire-maven-plugin` during `verify`. Invoker IT modules are
-out of scope for the gate (they exercise the plugin end-to-end in separate Maven builds).
-
-```bash
-mvn clean verify              # unit tests + coverage check
-mvn clean verify install -Prun-its   # CI parity
-```
-
-Open `phoenixfire-coverage/target/site/jacoco-aggregate/index.html` after a build. See [docs/COVERAGE.md](docs/COVERAGE.md)
-for scope, CI artifacts, and notes on what the gate does and does not measure.
-
 ## Extensibility (SPI, via `java.util.ServiceLoader`)
 
 Implement and register any of these (classes discovered on the project test classpath):
@@ -262,7 +247,7 @@ mvn verify \
 
 ```xml
 <plugin>
-  <groupId>io.github.benmanifold</groupId>
+  <groupId>io.github.phoenixfire-labs</groupId>
   <artifactId>phoenixfire-maven-plugin</artifactId>
   <configuration>
     <gitSha>${env.GITHUB_SHA}</gitSha>
@@ -289,120 +274,14 @@ tool can slice without a join. Notable fields:
 - `exitCode`, `failureMode`, `failureSignature` - crash diagnostics; the signature clusters
   "the same crash" across attempts and runs.
 
-## Using from Maven Central
+## Documentation
 
-Released versions are published under **`io.github.benmanifold`** (no extra repository or PAT).
-Use a release version from [Maven Central](https://central.sonatype.com/search?q=io.github.benmanifold+phoenixfire):
-
-```xml
-<plugin>
-  <groupId>io.github.benmanifold</groupId>
-  <artifactId>phoenixfire-maven-plugin</artifactId>
-  <version>0.1.0</version>
-</plugin>
-```
-
-SNAPSHOTs are not on Central; use GitHub Packages below while iterating on `main`.
-
-One-time publisher setup (namespace, GPG, Sonatype token): see [docs/MAVEN-CENTRAL.md](docs/MAVEN-CENTRAL.md).
-
-To trial on an existing corporate multi-module project: [docs/TRY-IN-ENTERPRISE.md](docs/TRY-IN-ENTERPRISE.md).
-
-## Using from GitHub Packages
-
-Artifacts are also published to [GitHub Packages](https://github.com/BenManifold/maven-phoenixfire-plugin/packages)
-for this repository (`io.github.benmanifold:*`). Useful for **SNAPSHOT** builds before a Central release.
-
-Add the repository and authenticate (a [classic PAT](https://github.com/settings/tokens) or fine-grained
-token with `read:packages`, or `GITHUB_TOKEN` in CI) with server id `github`:
-
-```xml
-<repositories>
-  <repository>
-    <id>github</id>
-    <url>https://maven.pkg.github.com/BenManifold/maven-phoenixfire-plugin</url>
-    <snapshots><enabled>true</enabled></snapshots>
-  </repository>
-</repositories>
-<pluginRepositories>
-  <pluginRepository>
-    <id>github</id>
-    <url>https://maven.pkg.github.com/BenManifold/maven-phoenixfire-plugin</url>
-    <snapshots><enabled>true</enabled></snapshots>
-  </pluginRepository>
-</pluginRepositories>
-```
-
-In `~/.m2/settings.xml` (or CI secrets):
-
-```xml
-<servers>
-  <server>
-    <id>github</id>
-    <username>YOUR_GITHUB_USERNAME</username>
-    <password>YOUR_TOKEN</password>
-  </server>
-</servers>
-```
-
-Then depend on a released version, for example:
-
-```xml
-<plugin>
-  <groupId>io.github.benmanifold</groupId>
-  <artifactId>phoenixfire-maven-plugin</artifactId>
-  <version>0.1.0-SNAPSHOT</version>
-</plugin>
-```
-
-## Publishing
-
-Versioning uses the usual Maven **CI-friendly `${revision}` property** (see [Maven CI Friendly
-Versions](https://maven.apache.org/maven-ci-friendly.html)). Release versions come from the Git tag,
-not a manual edit at release time.
-
-### Create a release (recommended)
-
-1. In GitHub: **Releases → Create a new release**.
-2. Choose tag **`v0.1.0`** (with `v` prefix) targeting `main`.
-3. Publish the release.
-
-On release, two workflows run:
-
-1. **Publish to Maven Central** (`.github/workflows/publish-central.yml`) — primary for enterprise
-   consumers; coordinate `io.github.benmanifold:phoenixfire-maven-plugin:x.y.z`.
-2. **Publish to GitHub Packages** (`.github/workflows/publish.yml`) — same version to GitHub Packages.
-
-Both then bump **`main`** to **`x.y.z+1-SNAPSHOT`** (via `publish.yml`). Example: after `0.2.0` → `0.2.1-SNAPSHOT`.
-
-You can also push a tag alone (`git tag v0.1.0 && git push origin v0.1.0`) or run the workflows
-manually with a version input.
-
-### SNAPSHOT builds for testing
-
-Every push to **`main`** runs **Publish SNAPSHOT to GitHub Packages** (`.github/workflows/publish-snapshot.yml`).
-It deploys whatever `<revision>` is in `pom.xml` (must end with `-SNAPSHOT`, e.g. `0.1.1-SNAPSHOT`) without re-running the PR test suite.
-Use that coordinate in a consumer project while iterating.
-
-### One-time: `PACKAGES_PUBLISH_TOKEN` (fixes 401)
-
-Maven deploy to GitHub Packages usually **cannot** use `GITHUB_TOKEN` alone (401 Unauthorized). Add a
-repository secret once:
-
-1. GitHub → **Settings → Developer settings → Personal access tokens → Tokens (classic)** → generate.
-2. Scopes: **`write:packages`**, **`read:packages`**, and **`repo`** if this repository is private.
-3. Repo → **Settings → Secrets and variables → Actions** → **New repository secret** → name
-   `PACKAGES_PUBLISH_TOKEN`, paste the token.
-
-Both publish workflows fail fast with instructions if the secret is missing.
-
-`phoenixfire-it` is not published (`maven.deploy.skip`).
-
-Local deploy to GitHub Packages: `mvn -B -ntp clean deploy -Pgithub-packages -Prun-its` with the
-`github` server in `~/.m2/settings.xml`.
-
-Local deploy to Maven Central: GPG + `central` server in `~/.m2/settings.xml`, then
-`mvn -B -ntp clean deploy -Pcentral -Prun-its` (release version only, not `-SNAPSHOT`).
+| Doc | Audience |
+|-----|----------|
+| [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | Contributors: CI, local build, release, JDK policy |
+| [docs/COVERAGE.md](docs/COVERAGE.md) | JaCoCo gate (opt-in `-Pcoverage`) |
+| [docs/MAVEN-CENTRAL.md](docs/MAVEN-CENTRAL.md) | Publishing to Maven Central |
+| [docs/TRY-IN-ENTERPRISE.md](docs/TRY-IN-ENTERPRISE.md) | Adopting on an existing multi-module repo |
 
 ## Status
 

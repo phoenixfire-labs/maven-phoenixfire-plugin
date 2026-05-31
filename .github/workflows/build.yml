@@ -41,7 +41,7 @@ jobs:
           PHOENIXFIRE_GIT_SHA: ${{ github.sha }}
           PHOENIXFIRE_GIT_BRANCH: ${{ github.head_ref || github.ref_name }}
         run: >
-          mvn -B -ntp clean verify install -Prun-its
+          mvn -B -ntp clean verify install -Prun-its -Pcoverage
           -Dphoenixfire.git.sha=$PHOENIXFIRE_GIT_SHA
           -Dphoenixfire.git.branch=$PHOENIXFIRE_GIT_BRANCH
           -Dphoenixfire.ci.provider=github

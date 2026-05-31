@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>io.github.benmanifold</groupId>
+        <groupId>io.github.phoenixfire-labs</groupId>
         <artifactId>phoenixfire</artifactId>
         <version>${revision}</version>
     </parent>
@@ -24,7 +24,7 @@
     <!-- Not used for compilation; declared so the reactor builds and installs the plugin first. -->
     <dependencies>
         <dependency>
-            <groupId>io.github.benmanifold</groupId>
+            <groupId>io.github.phoenixfire-labs</groupId>
             <artifactId>phoenixfire-maven-plugin</artifactId>
             <version>${project.version}</version>
             <scope>provided</scope>

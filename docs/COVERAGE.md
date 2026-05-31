@@ -1,6 +1,6 @@
 # Code coverage
 
-Phoenixfire enforces **95% line and 90% branch coverage** on production modules via [JaCoCo](https://www.jacoco.org/jacoco/) in the `phoenixfire-coverage` module.
+JaCoCo is **off by default** (`jacoco.skip=true`). Enable the **95% line / 90% branch** aggregate gate on production modules with the **`coverage`** profile (or `-Djacoco.skip=false`).
 
 ## Scope
 
@@ -18,10 +18,10 @@ End-to-end Invoker projects under `phoenixfire-it/src/it` exercise the plugin in
 
 ```bash
 # Unit tests + coverage report + coverage check (no Invoker ITs)
-mvn clean verify
+mvn clean verify -Pcoverage
 
 # Full CI parity (Invoker ITs + coverage check + install)
-mvn clean verify install -Prun-its
+mvn clean verify install -Prun-its -Pcoverage
 ```
 
 Open the aggregated HTML report:
@@ -34,9 +34,9 @@ Per-module reports (after `test`):
 
 ## CI
 
-The [Build workflow](../.github/workflows/build.yml) runs on **pull requests** and `workflow_dispatch` with `mvn clean verify install -Prun-its` on JDK 17 and 21. The JaCoCo check runs on both matrix legs. On JDK 17, the workflow uploads `phoenixfire-coverage/target/site/jacoco-aggregate/` as a build artifact for inspection.
+Pull-request CI runs with **`-Pcoverage`** (JDK 17 and 21). See [DEVELOPMENT.md](DEVELOPMENT.md) for workflows and artifacts.
 
-**Pushes to `main`** do not run Build; they run [publish-snapshot](../.github/workflows/publish-snapshot.yml) only (`deploy` with tests and JaCoCo skipped). Release publish workflows behave the same way.
+Local `mvn verify`, `mvn install`, and `mvn install -DskipTests` do **not** run the coverage gate unless you add `-Pcoverage`.
 
 ## Notes
 

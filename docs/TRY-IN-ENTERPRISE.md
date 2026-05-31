@@ -1,7 +1,6 @@
 # Trying Phoenixfire on an existing Maven project
 
-Use this when pointing Phoenixfire at a large or messy corporate test suite (many modules,
-fork-heavy Surefire config, flaky integration tests).
+Use this when pointing Phoenixfire at a large or messy corporate test suite.
 
 ## 1. Add the plugin (Maven Central)
 
@@ -9,14 +8,11 @@ No extra repository when using a **released** version from Central:
 
 ```xml
 <plugin>
-  <groupId>io.github.benmanifold</groupId>
+  <groupId>io.github.phoenixfire-labs</groupId>
   <artifactId>phoenixfire-maven-plugin</artifactId>
   <version>0.1.0</version>
 </plugin>
 ```
-
-For a **SNAPSHOT** from GitHub Packages, add the `github` repository and PAT as in the main
-[README](../README.md#using-from-github-packages).
 
 ## 2. Opt in on one module first
 
@@ -37,7 +33,7 @@ bind Phoenixfire:
       <configuration><skip>true</skip></configuration>
     </plugin>
     <plugin>
-      <groupId>io.github.benmanifold</groupId>
+      <groupId>io.github.phoenixfire-labs</groupId>
       <artifactId>phoenixfire-maven-plugin</artifactId>
       <version>0.1.0</version>
       <executions>

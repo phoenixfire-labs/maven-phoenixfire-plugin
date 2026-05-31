@@ -1,22 +1,25 @@
 # Publishing to Maven Central
 
-Artifacts use **`io.github.benmanifold`** so Sonatype can verify ownership via your GitHub account
-(no custom domain required).
+Artifacts use **`io.github.phoenixfire-labs`** so Sonatype can verify ownership via the
+[phoenixfire-labs](https://github.com/phoenixfire-labs) GitHub organization (no custom domain required).
 
 ## One-time setup
 
 ### 1. Central Portal account and namespace
 
-1. Sign in at [central.sonatype.com](https://central.sonatype.com) with the **same GitHub user**
-   that owns `BenManifold/maven-phoenixfire-plugin`.
-2. Open **Namespaces**. You should see **`io.github.benmanifold`** auto-provisioned after GitHub login.
-3. If not: **Add namespace** → `io.github.benmanifold` → verify with the temporary public repo
-   Sonatype requests (name = verification key), then delete that repo.
+1. Sign in at [central.sonatype.com](https://central.sonatype.com) with a GitHub user that is an
+   **owner** of the `phoenixfire-labs` organization.
+2. Open **Namespaces**. Add or confirm **`io.github.phoenixfire-labs`** (Sonatype maps the org login
+   `phoenixfire-labs` to this `groupId`).
+3. Complete verification when prompted (often a temporary public repo under the org whose name matches
+   the verification key); delete that repo after approval.
+4. Ensure the canonical plugin repository is **`phoenixfire-labs/maven-phoenixfire-plugin`** (public).
 
 ### 2. User token (CI credentials)
 
 1. Central Portal → **Account** → **Generate User Token**.
-2. Add repository secrets (Settings → Secrets and variables → Actions):
+2. Add repository (or organization) secrets on **`phoenixfire-labs/maven-phoenixfire-plugin`**
+   (Settings → Secrets and variables → Actions):
 
 | Secret | Value |
 |--------|--------|
@@ -58,7 +61,7 @@ gpg --armor --export YOUR_KEY_ID | curl -fsSL --upload-file - https://keys.openp
 
 ```xml
 <plugin>
-  <groupId>io.github.benmanifold</groupId>
+  <groupId>io.github.phoenixfire-labs</groupId>
   <artifactId>phoenixfire-maven-plugin</artifactId>
   <version>0.1.0</version>
 </plugin>
@@ -99,5 +102,5 @@ mvn -B -ntp clean deploy -Pcentral -Prun-its
 
 ## Java packages vs Maven coordinates
 
-Maven **`groupId`** is `io.github.benmanifold`. Java packages remain `io.phoenixfire.*` (internal API);
+Maven **`groupId`** is `io.github.phoenixfire-labs`. Java packages remain `io.phoenixfire.*` (internal API);
 consumers only need the plugin `groupId` / `artifactId` above.

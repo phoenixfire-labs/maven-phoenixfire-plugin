@@ -319,7 +319,9 @@ public abstract class AbstractPhoenixfireMojo extends AbstractMojo {
             return false;
         }
         String groupId = artifact.getGroupId();
-        return "io.github.benmanifold".equals(groupId) || "org.junit.platform".equals(groupId);
+        return "io.github.phoenixfire-labs".equals(groupId)
+                || "io.github.benmanifold".equals(groupId)
+                || "org.junit.platform".equals(groupId);
     }
 
     /** Reads include/exclude patterns from a file: one per line, blank lines and {@code #} comments ignored. */
