@@ -92,6 +92,11 @@
                 <artifactId>phoenixfire-core</artifactId>
                 <version>${phoenixfire.version}</version>
             </dependency>
+            <dependency>
+                <groupId>io.github.phoenixfire-labs</groupId>
+                <artifactId>phoenixfire-maven-plugin</artifactId>
+                <version>${phoenixfire.version}</version>
+            </dependency>
 
             <dependency>
                 <groupId>org.junit</groupId>
