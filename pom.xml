@@ -50,7 +50,7 @@
         <maven.compiler.release>17</maven.compiler.release>
 
         <!-- Single source of truth for the reactor version (CI-friendly / release-friendly). -->
-        <revision>0.1.3-SNAPSHOT</revision>
+        <revision>0.5.1-SNAPSHOT</revision>
         <phoenixfire.version>${revision}</phoenixfire.version>
 
         <!-- Unified JUnit 6 BOM (Platform + Jupiter + Vintage). Consumers may use JUnit 5.x or 6.x on the test classpath. -->
