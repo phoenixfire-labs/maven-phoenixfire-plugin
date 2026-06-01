@@ -1,9 +1,7 @@
 name: Publish to Maven Central
 
-# Same triggers as GitHub Packages release; deploys io.github.phoenixfire-labs:* to Central.
+# Tag push only (not release:published) — creating a GitHub Release also pushes the tag; both events = duplicate runs.
 on:
-  release:
-    types: [published]
   push:
     tags:
       - 'v*'
@@ -57,8 +55,6 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             VERSION="${{ inputs.version }}"
-          elif [ "${{ github.event_name }}" = "release" ]; then
-            VERSION="${{ github.event.release.tag_name }}"
           else
             VERSION="${GITHUB_REF_NAME}"
           fi

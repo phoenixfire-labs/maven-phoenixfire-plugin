@@ -1,9 +1,7 @@
 name: Publish to GitHub Packages
 
-# Release tag or GitHub Release → deploy that version, then bump main to the next SNAPSHOT.
+# Tag push deploys the release, then bumps main to the next SNAPSHOT (see DEVELOPMENT.md).
 on:
-  release:
-    types: [published]
   push:
     tags:
       - 'v*'
@@ -49,8 +47,6 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             VERSION="${{ inputs.version }}"
-          elif [ "${{ github.event_name }}" = "release" ]; then
-            VERSION="${{ github.event.release.tag_name }}"
           else
             VERSION="${GITHUB_REF_NAME}"
           fi

@@ -75,18 +75,17 @@ JaCoCo is **off by default** (`jacoco.skip=true`). PR CI enables **`-Pcoverage`*
 
 ### Release (recommended)
 
-1. GitHub **Releases → Create a new release**.
-2. Tag **`v0.1.0`** (with `v` prefix) on `main`.
-3. Publish the release.
+Publish workflows run **once per `v*` tag push** (not on `release: published`, which would duplicate the same deploy when you use GitHub Releases).
 
-Workflows:
+1. Tag on `main` and push: `git tag v0.1.0 && git push origin v0.1.0`
+2. That triggers **Publish to Maven Central** and **Publish to GitHub Packages** (one run each).
+3. Optional: add release notes in GitHub **Releases** (`gh release create v0.1.0` or the UI) — metadata only; CI already ran on the tag push.
 
-1. **Publish to Maven Central** — `publish-central.yml`; uploads to Sonatype then exits. Check [central.sonatype.com](https://central.sonatype.com) → **Deployments** for live status.
-2. **Publish to GitHub Packages** — `publish.yml`; same version.
+**Publish to Maven Central** uploads to Sonatype then exits; check [central.sonatype.com](https://central.sonatype.com) → **Deployments** for validation/publish status.
 
-`publish.yml` then bumps `main` to **`x.y.z+1-SNAPSHOT`** (e.g. after `0.2.0` → `0.2.1-SNAPSHOT`).
+**Publish to GitHub Packages** then bumps `main` to **`x.y.z+1-SNAPSHOT`** (e.g. after `0.2.0` → `0.2.1-SNAPSHOT`).
 
-Alternatively: `git tag v0.1.0 && git push origin v0.1.0`, or run workflows manually with a version input.
+Manual fallback: **Actions → Publish to … → Run workflow** with a version (no `v` prefix).
 
 ### SNAPSHOTs on `main`
 

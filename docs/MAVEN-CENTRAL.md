@@ -59,8 +59,8 @@ gpg --armor --export YOUR_KEY_ID | curl -fsSL --upload-file - https://keys.openp
 
 ### 4. First release
 
-1. Ensure `main` has the version you want to ship (or let CI set it from the tag).
-2. Create GitHub release **`v0.1.0`** (or push tag `v0.1.0`).
+1. Ensure `main` has the version you want to ship (CI sets `${revision}` from the tag).
+2. Push tag **`v0.1.0`** (`git tag v0.1.0 && git push origin v0.1.0`). GitHub Release notes are optional and do not trigger deploy.
 3. Workflow **Publish to Maven Central** runs `mvn deploy -Pcentral` and exits after the bundle is
    **uploaded** (`waitUntil=uploaded`). Sonatype validates and publishes asynchronously (`autoPublish=true`).
    Track status at [central.sonatype.com](https://central.sonatype.com) → **Deployments** (often 10–45+ minutes
