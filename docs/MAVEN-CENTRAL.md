@@ -23,8 +23,11 @@ Artifacts use **`io.github.phoenixfire-labs`** so Sonatype can verify ownership 
 
 | Secret | Value |
 |--------|--------|
-| `CENTRAL_USERNAME` | Token username from the portal |
-| `CENTRAL_PASSWORD` | Token password from the portal |
+| `CENTRAL_USERNAME` | **Username** from Central Portal → Account → Generate User Token (not your GitHub login) |
+| `CENTRAL_PASSWORD` | **Password** from that same token pair (not your GitHub password) |
+
+Secrets must live on the repo that runs the workflow (`phoenixfire-labs/maven-phoenixfire-plugin`).
+CI copies them into env vars `CENTRAL_USERNAME` / `CENTRAL_PASSWORD` for Maven; `setup-java` must receive those **names**, not `${{ secrets.* }}` as the `server-username` / `server-password` inputs.
 
 ### 3. GPG signing key
 

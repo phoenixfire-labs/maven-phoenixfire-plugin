@@ -77,7 +77,9 @@ jobs:
       - name: Set up JDK 17 and GPG
         uses: actions/setup-java@v4
         env:
-          # Secret name GPG_PASSPHRASE; setup-java gpg-passphrase is the *env var name*, not the value.
+          # setup-java *-username/*-password/*-passphrase inputs are env var NAMES, not secret values.
+          CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
+          CENTRAL_PASSWORD: ${{ secrets.CENTRAL_PASSWORD }}
           MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         with:
           distribution: temurin
@@ -86,13 +88,15 @@ jobs:
           gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
           gpg-passphrase: MAVEN_GPG_PASSPHRASE
           server-id: central
-          server-username: ${{ secrets.CENTRAL_USERNAME }}
-          server-password: ${{ secrets.CENTRAL_PASSWORD }}
+          server-username: CENTRAL_USERNAME
+          server-password: CENTRAL_PASSWORD
 
       - name: Set Maven version from release tag
         run: mvn -B -ntp versions:set-property -Dproperty=revision -DnewVersion=${{ steps.version.outputs.version }} -DgenerateBackupPoms=false
 
       - name: Build, sign, and publish to Central
         env:
+          CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
+          CENTRAL_PASSWORD: ${{ secrets.CENTRAL_PASSWORD }}
           MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: mvn -B -ntp clean deploy -Pcentral -Dmaven.test.skip=true -Djacoco.skip=true
