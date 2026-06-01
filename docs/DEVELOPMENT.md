@@ -81,7 +81,7 @@ JaCoCo is **off by default** (`jacoco.skip=true`). PR CI enables **`-Pcoverage`*
 
 Workflows:
 
-1. **Publish to Maven Central** — `publish-central.yml`; primary consumer coordinate.
+1. **Publish to Maven Central** — `publish-central.yml`; uploads to Sonatype then exits. Check [central.sonatype.com](https://central.sonatype.com) → **Deployments** for live status.
 2. **Publish to GitHub Packages** — `publish.yml`; same version.
 
 `publish.yml` then bumps `main` to **`x.y.z+1-SNAPSHOT`** (e.g. after `0.2.0` → `0.2.1-SNAPSHOT`).
@@ -103,6 +103,10 @@ Each push to `main` runs **publish-snapshot.yml**, deploying the current `<revis
 | `PACKAGES_PUBLISH_TOKEN` | GitHub Packages deploy (classic PAT: `write:packages`, `read:packages`, and `repo` if private) |
 
 `GITHUB_TOKEN` alone usually returns **401** for Maven deploy to GitHub Packages; publish workflows fail fast if `PACKAGES_PUBLISH_TOKEN` is missing.
+
+CI sets `GITHUB_PACKAGES_TOKEN` from that secret and passes `-Dgithub.repository=${{ github.repository }}` so the deploy URL always matches the repo running the workflow (not only the default in `pom.xml`). Add `PACKAGES_PUBLISH_TOKEN` on **`phoenixfire-labs/maven-phoenixfire-plugin`** after the org transfer; authorize the classic PAT for the org (**SSO**) if required.
+
+**“Could not find artifact … in github (https://maven.pkg.github.com/phoenixfire-labs/…)”** while the workflow runs on **`BenManifold/...`**: registry URL vs checkout repo mismatch (fixed by the `-Dgithub.repository` override) or a PAT that cannot publish to the org package namespace.
 
 One-time Central namespace setup: [MAVEN-CENTRAL.md](MAVEN-CENTRAL.md).
 

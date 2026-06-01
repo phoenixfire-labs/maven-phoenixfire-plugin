@@ -39,11 +39,10 @@ jobs:
           distribution: temurin
           java-version: '17'
           cache: maven
+          overwrite-settings: false
 
       - name: Configure GitHub Packages credentials
         uses: ./.github/actions/configure-maven-github-packages
-        with:
-          token: ${{ secrets.PACKAGES_PUBLISH_TOKEN }}
 
       - name: Verify revision is a SNAPSHOT
         id: revision
@@ -57,4 +56,10 @@ jobs:
           fi
 
       - name: Build and deploy SNAPSHOT
-        run: mvn -B -ntp clean deploy -Pgithub-packages -Dmaven.test.skip=true -Djacoco.skip=true
+        env:
+          GITHUB_PACKAGES_TOKEN: ${{ secrets.PACKAGES_PUBLISH_TOKEN }}
+        run: |
+          echo "Deploying to https://maven.pkg.github.com/${GITHUB_REPOSITORY}"
+          mvn -B -ntp clean deploy -Pgithub-packages \
+            -Dgithub.repository="${GITHUB_REPOSITORY}" \
+            -Dmaven.test.skip=true -Djacoco.skip=true

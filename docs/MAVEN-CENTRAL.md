@@ -61,8 +61,10 @@ gpg --armor --export YOUR_KEY_ID | curl -fsSL --upload-file - https://keys.openp
 
 1. Ensure `main` has the version you want to ship (or let CI set it from the tag).
 2. Create GitHub release **`v0.1.0`** (or push tag `v0.1.0`).
-3. Workflow **Publish to Maven Central** runs `mvn deploy -Pcentral -Prun-its` and waits until
-   artifacts are **published** on Central.
+3. Workflow **Publish to Maven Central** runs `mvn deploy -Pcentral` and exits after the bundle is
+   **uploaded** (`waitUntil=uploaded`). Sonatype validates and publishes asynchronously (`autoPublish=true`).
+   Track status at [central.sonatype.com](https://central.sonatype.com) → **Deployments** (often 10–45+ minutes
+   before artifacts are searchable on Central).
 4. Consumers add only the plugin coordinate (no extra repository):
 
 ```xml

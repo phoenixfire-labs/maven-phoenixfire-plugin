@@ -72,17 +72,22 @@ jobs:
           distribution: temurin
           java-version: '17'
           cache: maven
+          overwrite-settings: false
 
       - name: Configure GitHub Packages credentials
         uses: ./.github/actions/configure-maven-github-packages
-        with:
-          token: ${{ secrets.PACKAGES_PUBLISH_TOKEN }}
 
       - name: Set Maven version from release tag
         run: mvn -B -ntp versions:set-property -Dproperty=revision -DnewVersion=${{ steps.version.outputs.version }} -DgenerateBackupPoms=false
 
       - name: Build and deploy
-        run: mvn -B -ntp clean deploy -Pgithub-packages -Dmaven.test.skip=true -Djacoco.skip=true
+        env:
+          GITHUB_PACKAGES_TOKEN: ${{ secrets.PACKAGES_PUBLISH_TOKEN }}
+        run: |
+          echo "Deploying to https://maven.pkg.github.com/${GITHUB_REPOSITORY}"
+          mvn -B -ntp clean deploy -Pgithub-packages \
+            -Dgithub.repository="${GITHUB_REPOSITORY}" \
+            -Dmaven.test.skip=true -Djacoco.skip=true
 
   bump-snapshot:
     name: Bump main to next SNAPSHOT

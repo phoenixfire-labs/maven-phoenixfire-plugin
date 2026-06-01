@@ -338,7 +338,8 @@
                         <configuration>
                             <publishingServerId>central</publishingServerId>
                             <autoPublish>true</autoPublish>
-                            <waitUntil>published</waitUntil>
+                            <!-- CI ends after upload; validation/publish continue on Central Portal. -->
+                            <waitUntil>uploaded</waitUntil>
                             <deploymentName>phoenixfire-${project.version}</deploymentName>
                         </configuration>
                     </plugin>
