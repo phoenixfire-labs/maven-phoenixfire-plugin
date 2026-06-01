@@ -22,25 +22,36 @@
         <maven.test.skip>true</maven.test.skip>
     </properties>
 
-    <dependencies>
-        <dependency>
-            <groupId>io.github.phoenixfire-labs</groupId>
-            <artifactId>phoenixfire-api</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.github.phoenixfire-labs</groupId>
-            <artifactId>phoenixfire-fork-runner</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.github.phoenixfire-labs</groupId>
-            <artifactId>phoenixfire-core</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.github.phoenixfire-labs</groupId>
-            <artifactId>phoenixfire-maven-plugin</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-    </dependencies>
+    <!-- Sibling deps only when -Pcoverage (jacoco.skip=false); avoids IDE/repo resolution when module is out of reactor. -->
+    <profiles>
+        <profile>
+            <id>coverage-reactor-deps</id>
+            <activation>
+                <property>
+                    <name>jacoco.skip</name>
+                    <value>false</value>
+                </property>
+            </activation>
+            <dependencies>
+                <dependency>
+                    <groupId>io.github.phoenixfire-labs</groupId>
+                    <artifactId>phoenixfire-api</artifactId>
+                </dependency>
+                <dependency>
+                    <groupId>io.github.phoenixfire-labs</groupId>
+                    <artifactId>phoenixfire-fork-runner</artifactId>
+                </dependency>
+                <dependency>
+                    <groupId>io.github.phoenixfire-labs</groupId>
+                    <artifactId>phoenixfire-core</artifactId>
+                </dependency>
+                <dependency>
+                    <groupId>io.github.phoenixfire-labs</groupId>
+                    <artifactId>phoenixfire-maven-plugin</artifactId>
+                </dependency>
+            </dependencies>
+        </profile>
+    </profiles>
 
     <build>
         <outputDirectory>${project.build.directory}/all-classes</outputDirectory>
