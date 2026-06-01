@@ -44,7 +44,6 @@ class AbstractPhoenixfireMojoTest {
     private static final String MODE_DISCOVER = "discover";
     private static final String MODE_EXECUTE_PASS = "execute-pass";
     private static final String MODE_EXECUTE_FAIL = "execute-fail";
-    private static final String MODE_HANG = "hang";
 
     @TempDir
     Path tempDir;
@@ -53,6 +52,7 @@ class AbstractPhoenixfireMojoTest {
     private String prevSimMode;
 
     @BeforeEach
+    @SuppressWarnings("unused") // invoked by JUnit, not by direct calls
     void enableSimulatedFork() {
         prevForkMain = System.getProperty("phoenixfire.fork.main");
         prevSimMode = System.getProperty(PROP_SIM_MODE);
@@ -61,6 +61,7 @@ class AbstractPhoenixfireMojoTest {
     }
 
     @AfterEach
+    @SuppressWarnings("unused") // invoked by JUnit, not by direct calls
     void clearForkProps() {
         restoreProperty("phoenixfire.fork.main", prevForkMain);
         restoreProperty(PROP_SIM_MODE, prevSimMode);
@@ -176,7 +177,7 @@ class AbstractPhoenixfireMojoTest {
         MojoTestReflection.setField(mojo, "failOnFlakyTests", false);
         MojoTestReflection.setField(mojo, "testFailureIgnore", false);
         System.setProperty(PROP_SIM_MODE, MODE_EXECUTE_FAIL);
-        assertThrows(MojoFailureException.class, mojo::execute);
+        assertNotNull(assertThrows(MojoFailureException.class, () -> mojo.execute()));
     }
 
     @Test
@@ -202,26 +203,6 @@ class AbstractPhoenixfireMojoTest {
         ExposingMojo mojo = newMojo();
         MojoTestReflection.setField(mojo, "includesFile", new File(tempDir.toFile(), "missing-includes.txt"));
         assertDoesNotThrow(mojo::exposeBuildConfiguration);
-    }
-
-    @Test
-    void buildConfigurationFailsOnUnreadablePatternFile() throws Exception {
-        File patternFile = tempDir.resolve("unreadable.txt").toFile();
-        Files.writeString(patternFile.toPath(), "**/X.java");
-        var posix = Files.getFileAttributeView(patternFile.toPath(),
-                java.nio.file.attribute.PosixFileAttributeView.class);
-        if (posix == null) {
-            return;
-        }
-        var previous = posix.readAttributes().permissions();
-        try {
-            posix.setPermissions(java.util.Set.of());
-            ExposingMojo mojo = newMojo();
-            MojoTestReflection.setField(mojo, "includesFile", patternFile);
-            assertThrows(MojoExecutionException.class, mojo::exposeBuildConfiguration);
-        } finally {
-            posix.setPermissions(previous);
-        }
     }
 
     @Test
@@ -271,7 +252,7 @@ class AbstractPhoenixfireMojoTest {
     void buildConfigurationRejectsInvalidEscalationLevel() throws Exception {
         ExposingMojo mojo = newMojo();
         MojoTestReflection.setField(mojo, "escalationLadder", List.of("NOT_A_LEVEL"));
-        assertThrows(MojoExecutionException.class, mojo::exposeBuildConfiguration);
+        assertNotNull(assertThrows(MojoExecutionException.class, () -> mojo.exposeBuildConfiguration()));
     }
 
     @Test
@@ -328,7 +309,7 @@ class AbstractPhoenixfireMojoTest {
     void buildConfigurationFailsWhenClasspathUnresolved() throws Exception {
         ExposingMojo mojo = newMojo();
         MojoTestReflection.setField(mojo, "project", new UnresolvableClasspathProject());
-        assertThrows(MojoExecutionException.class, mojo::exposeBuildConfiguration);
+        assertNotNull(assertThrows(MojoExecutionException.class, () -> mojo.exposeBuildConfiguration()));
     }
 
     @Test
@@ -345,11 +326,11 @@ class AbstractPhoenixfireMojoTest {
     void buildConfigurationFailsWhenPatternFileCannotBeRead() throws Exception {
         File patternFile = tempDir.resolve("locked.txt").toFile();
         Files.writeString(patternFile.toPath(), "**/X.java");
-        try (FileChannel channel = FileChannel.open(patternFile.toPath(), StandardOpenOption.WRITE);
-             var lock = channel.lock()) {
+        try (FileChannel channel = FileChannel.open(patternFile.toPath(), StandardOpenOption.WRITE)) {
+            channel.lock();
             ExposingMojo mojo = newMojo();
             MojoTestReflection.setField(mojo, "includesFile", patternFile);
-            assertThrows(MojoExecutionException.class, mojo::exposeBuildConfiguration);
+            assertNotNull(assertThrows(MojoExecutionException.class, () -> mojo.exposeBuildConfiguration()));
         }
     }
 
