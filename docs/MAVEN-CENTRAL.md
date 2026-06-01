@@ -43,7 +43,10 @@ Add secrets:
 | Secret | Value |
 |--------|--------|
 | `GPG_PRIVATE_KEY` | Full armored private key block |
-| `GPG_PASSPHRASE` | Passphrase for that key |
+| `GPG_PASSPHRASE` | Passphrase for that key (no trailing newline) |
+
+CI maps `GPG_PASSPHRASE` → environment variable `MAVEN_GPG_PASSPHRASE` for `setup-java` and
+`maven-gpg-plugin`. The workflow input `gpg-passphrase` must be that variable **name**, not the secret value.
 
 Upload the **public** key to a keyserver (Central docs recommend keys.openpgp.org):
 
