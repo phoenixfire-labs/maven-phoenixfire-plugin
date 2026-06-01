@@ -10,7 +10,7 @@ How this repository is built, tested, and published. For using Phoenixfire in yo
 | `phoenixfire-fork-runner` | In-fork JUnit Platform worker |
 | `phoenixfire-core` | Controller engine |
 | `phoenixfire-maven-plugin` | Maven plugin goals |
-| `phoenixfire-coverage` | JaCoCo aggregate report and optional gate |
+| `phoenixfire-coverage` | JaCoCo aggregate report and optional gate (**`-Pcoverage` only**; not published) |
 | `phoenixfire-it` | Invoker integration tests (not published) |
 
 Versioning uses Maven **CI-friendly `${revision}`** ([docs](https://maven.apache.org/maven-ci-friendly.html)). Release versions come from Git tags (`v*`), not manual POM edits at release time.
@@ -124,7 +124,7 @@ Maven Central (GPG + `central` server; release version only):
 mvn -B -ntp clean deploy -Pcentral -Dmaven.test.skip=true -Djacoco.skip=true
 ```
 
-`phoenixfire-it` is not deployed (`maven.deploy.skip`).
+`phoenixfire-it` is not deployed (`maven.deploy.skip`). `phoenixfire-coverage` is omitted from release/`deploy` builds (add `-Pcoverage` for PR CI only).
 
 ## Consuming SNAPSHOTs (developers)
 

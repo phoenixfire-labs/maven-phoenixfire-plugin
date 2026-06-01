@@ -40,7 +40,6 @@
         <module>phoenixfire-fork-runner</module>
         <module>phoenixfire-core</module>
         <module>phoenixfire-maven-plugin</module>
-        <module>phoenixfire-coverage</module>
         <module>phoenixfire-it</module>
     </modules>
 
@@ -253,9 +252,12 @@
             </properties>
         </profile>
 
-        <!-- Opt-in: 95% line / 90% branch aggregate gate (phoenixfire-coverage). -->
+        <!-- Opt-in: 95% line / 90% branch aggregate gate (phoenixfire-coverage). Not in the default reactor (release deploy). -->
         <profile>
             <id>coverage</id>
+            <modules>
+                <module>phoenixfire-coverage</module>
+            </modules>
             <properties>
                 <jacoco.skip>false</jacoco.skip>
             </properties>
@@ -341,6 +343,11 @@
                             <!-- CI ends after upload; validation/publish continue on Central Portal. -->
                             <waitUntil>uploaded</waitUntil>
                             <deploymentName>phoenixfire-${project.version}</deploymentName>
+                            <!-- maven.deploy.skip does not exclude modules from the Central bundle. -->
+                            <excludeArtifacts>
+                                <excludeArtifact>phoenixfire-coverage</excludeArtifact>
+                                <excludeArtifact>phoenixfire-it</excludeArtifact>
+                            </excludeArtifacts>
                         </configuration>
                     </plugin>
                 </plugins>

@@ -106,7 +106,7 @@ mvn -B -ntp clean deploy -Pcentral -Prun-its
 | `phoenixfire-core` | Engine |
 | `phoenixfire-maven-plugin` | **Consumer-facing** Maven plugin |
 
-`phoenixfire-it` is not deployed (`maven.deploy.skip`).
+`phoenixfire-it` and `phoenixfire-coverage` are not part of the release reactor (`phoenixfire-coverage` only builds with `-Pcoverage`; both are listed in `excludeArtifacts` for Central).
 
 ## Java packages vs Maven coordinates
 

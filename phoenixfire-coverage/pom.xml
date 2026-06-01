@@ -11,9 +11,9 @@
     </parent>
 
     <artifactId>phoenixfire-coverage</artifactId>
-    <packaging>jar</packaging>
+    <packaging>pom</packaging>
     <name>Phoenixfire Coverage</name>
-    <description>Reactor-terminal JaCoCo aggregate report and coverage gate (95% line / 90% branch).</description>
+    <description>CI-only JaCoCo aggregate report and coverage gate (95% line / 90% branch). Built with -Pcoverage; not published.</description>
 
     <properties>
         <maven.deploy.skip>true</maven.deploy.skip>
