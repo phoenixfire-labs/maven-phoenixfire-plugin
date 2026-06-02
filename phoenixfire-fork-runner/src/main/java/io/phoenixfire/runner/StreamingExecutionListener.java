@@ -1,18 +1,19 @@
 package io.phoenixfire.runner;
 
-import io.phoenixfire.api.ipc.IpcProtocol;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
+import org.jspecify.annotations.NonNull;
 import org.junit.platform.engine.TestExecutionResult;
 import org.junit.platform.engine.support.descriptor.ClassSource;
 import org.junit.platform.engine.support.descriptor.MethodSource;
 import org.junit.platform.launcher.TestExecutionListener;
 import org.junit.platform.launcher.TestIdentifier;
 
-import java.io.PrintWriter;
-import java.io.StringWriter;
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import io.phoenixfire.api.ipc.IpcProtocol;
 
 /**
  * JUnit Platform listener that streams per-test lifecycle events back to the controller in real
@@ -29,7 +30,7 @@ final class StreamingExecutionListener implements TestExecutionListener {
     }
 
     @Override
-    public void executionStarted(TestIdentifier testIdentifier) {
+    public void executionStarted(@NonNull TestIdentifier testIdentifier) {
         if (!testIdentifier.isTest()) {
             return;
         }
@@ -39,7 +40,7 @@ final class StreamingExecutionListener implements TestExecutionListener {
     }
 
     @Override
-    public void executionFinished(TestIdentifier testIdentifier, TestExecutionResult result) {
+    public void executionFinished(@NonNull TestIdentifier testIdentifier, @NonNull TestExecutionResult result) {
         if (!testIdentifier.isTest()) {
             return;
         }
@@ -71,7 +72,7 @@ final class StreamingExecutionListener implements TestExecutionListener {
     }
 
     @Override
-    public void executionSkipped(TestIdentifier testIdentifier, String reason) {
+    public void executionSkipped(@NonNull TestIdentifier testIdentifier, @NonNull String reason) {
         if (!testIdentifier.isTest()) {
             return;
         }

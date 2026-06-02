@@ -33,6 +33,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -266,6 +267,45 @@ class AbstractPhoenixfireMojoTest {
     }
 
     @Test
+    void buildConfigurationClearsPomExcludesWhenTestFilterSet() throws Exception {
+        ExposingMojo mojo = newMojo();
+        MojoTestReflection.setField(mojo, "test", "EnterpriseControllerIT");
+        MojoTestReflection.setField(mojo, "excludes", new ArrayList<>(List.of("**/*IT.java", "**/*$*")));
+        File excludesFile = tempDir.resolve("excludes.txt").toFile();
+        Files.writeString(excludesFile.toPath(), "**/Skip*.java\n");
+        MojoTestReflection.setField(mojo, "excludesFile", excludesFile);
+
+        PhoenixfireConfiguration config = mojo.exposeBuildConfiguration();
+        assertTrue(config.excludes().isEmpty());
+        assertTrue(config.includes().stream().anyMatch(g -> g.contains("EnterpriseControllerIT")));
+    }
+
+    @Test
+    void buildConfigurationScanRootsUseAllTestClasspathDirectories() throws Exception {
+        ExposingMojo mojo = newMojo();
+        Path integrationTestClasses = tempDir.resolve("target/integration-test-classes");
+        Files.createDirectories(integrationTestClasses);
+        Path testClasses = tempDir.resolve("target/test-classes");
+        Files.createDirectories(testClasses);
+        MavenProject base = project(mojo);
+        MavenProject custom = new FixedClasspathProject(List.of(
+                testClasses.toAbsolutePath().toString(),
+                integrationTestClasses.toAbsolutePath().toString(),
+                tempDir.resolve("lib/dependency.jar").toAbsolutePath().toString()));
+        custom.setBuild(base.getBuild());
+        custom.setGroupId(base.getGroupId());
+        custom.setArtifactId(base.getArtifactId());
+        custom.setVersion(base.getVersion());
+        custom.setFile(base.getFile());
+        MojoTestReflection.setField(mojo, "project", custom);
+
+        PhoenixfireConfiguration config = mojo.exposeBuildConfiguration();
+        assertTrue(config.scanRoots().contains(testClasses.toAbsolutePath().toString()));
+        assertTrue(config.scanRoots().contains(integrationTestClasses.toAbsolutePath().toString()));
+        assertEquals(2, config.scanRoots().size());
+    }
+
+    @Test
     void buildConfigurationAddsPluginArtifactsToClasspath() throws Exception {
         ExposingMojo mojo = newMojo();
         File pluginJar = jarPath(AbstractPhoenixfireMojo.class);
@@ -281,6 +321,36 @@ class AbstractPhoenixfireMojoTest {
         PhoenixfireConfiguration config = mojo.exposeBuildConfiguration();
         assertTrue(config.classpath().contains(pluginJar.getAbsolutePath()));
         assertTrue(config.classpath().contains(junitJar.getAbsolutePath()));
+    }
+
+    @Test
+    void buildConfigurationSkipsPluginLauncherWhenProjectDeclaresLauncher() throws Exception {
+        ExposingMojo mojo = new ExposingMojo();
+        mojo.setLog(new SystemStreamLog());
+        Path projectLauncher = tempDir.resolve("junit-platform-launcher-1.10.2.jar");
+        Files.createFile(projectLauncher);
+        MavenProject project = new FixedClasspathProject(List.of(
+                projectLauncher.toAbsolutePath().toString(),
+                Path.of("target", "test-classes").toAbsolutePath().toString()));
+        project.setGroupId("g");
+        project.setArtifactId("a");
+        project.setVersion("1.0");
+        project.setFile(tempDir.toFile());
+        Build build = new Build();
+        build.setDirectory(tempDir.resolve("target").toString());
+        build.setTestOutputDirectory(tempDir.resolve("target/test-classes").toString());
+        project.setBuild(build);
+
+        File pluginLauncher = jarPath(org.junit.platform.launcher.Launcher.class);
+        MojoTestReflection.setField(mojo, "project", project);
+        MojoTestReflection.setField(mojo, "reportsDir", tempDir.resolve("reports").toFile());
+        MojoTestReflection.setField(mojo, "pluginArtifacts", List.of(
+                pluginArtifact("org.junit.platform", "junit-platform-launcher", pluginLauncher)));
+        MojoTestReflection.setField(mojo, "journalEnabled", false);
+
+        PhoenixfireConfiguration config = mojo.exposeBuildConfiguration();
+        assertTrue(config.classpath().contains(projectLauncher.toAbsolutePath().toString()));
+        assertFalse(config.classpath().contains(pluginLauncher.getAbsolutePath()));
     }
 
     @Test

@@ -141,9 +141,10 @@ mvn test -Dtest='*ServiceTest,!SlowTest' # wildcards and negation (!)
 mvn verify -Dit.test='CheckoutIT#happy*' # integration tests, by method pattern
 ```
 
-Like Surefire, a `-Dtest` value **overrides the includes**, so a class outside the default
-`*Test`/`*IT` globs is still found. Selection is applied as a precise post-discovery filter, so
-method-level (`#method`) selection works regardless of fork/isolation strategy.
+Like Surefire/Failsafe, `-Dtest` / `-Dit.test` **override POM includes and excludes** (use
+`!Pattern` in the same expression to exclude). Discovery uses a `**/${name}.java` include for each
+named class so it is found in any package. Selection is applied as a precise post-discovery filter,
+so method-level (`#method`) selection works regardless of fork/isolation strategy.
 
 ### Sharding (split a suite across CI nodes)
 

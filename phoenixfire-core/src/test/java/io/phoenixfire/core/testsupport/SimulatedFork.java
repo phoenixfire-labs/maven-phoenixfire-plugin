@@ -2,6 +2,7 @@ package io.phoenixfire.core.testsupport;
 
 import io.phoenixfire.api.ipc.IpcProtocol;
 import io.phoenixfire.api.json.Json;
+import io.phoenixfire.api.junit.LauncherCompatibilityDiagnostics;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -39,6 +40,7 @@ public final class SimulatedFork {
     public static final String MODE_DISCONNECT_BEFORE_COMMAND = "disconnect-before-command";
     public static final String MODE_CLOSE_AFTER_HELLO = "close-after-hello";
     public static final String MODE_NO_DURATION = "no-duration";
+    public static final String MODE_DISCOVER_LAUNCHER_MISMATCH = "discover-launcher-mismatch";
 
     public static void main(String[] args) throws Exception {
         int port = Integer.parseInt(System.getProperty(IpcProtocol.PROP_PORT));
@@ -84,6 +86,11 @@ public final class SimulatedFork {
             }
 
             if (IpcProtocol.MSG_DISCOVER.equals(type)) {
+                if (MODE_DISCOVER_LAUNCHER_MISMATCH.equals(mode)) {
+                    System.out.println(LauncherCompatibilityDiagnostics.FORK_MARKER);
+                    System.out.println("java.lang.NoSuchMethodError: org.junit.platform.launcher.core.LauncherFactory");
+                    return;
+                }
                 if (MODE_NULL_UNIQUE_ID.equals(mode)) {
                     send(out, Map.of(IpcProtocol.FIELD_TYPE, IpcProtocol.MSG_DISCOVERED));
                 }

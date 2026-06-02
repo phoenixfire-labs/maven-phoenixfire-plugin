@@ -1,5 +1,6 @@
 package io.phoenixfire.core.discovery;
 
+import io.phoenixfire.api.junit.LauncherCompatibilityDiagnostics;
 import io.phoenixfire.api.model.TestId;
 import io.phoenixfire.core.supervisor.ForkDiscoveryResult;
 import io.phoenixfire.core.supervisor.ForkSupervisor;
@@ -33,6 +34,13 @@ public final class DiscoveryService {
             if (result.diagnostic() != null) {
                 log.warn("Discovery diagnostic tail:\n" + result.diagnostic());
             }
+            LauncherCompatibilityDiagnostics.suggestRemediation(result.diagnostic())
+                    .ifPresent(hint -> {
+                        log.error(hint);
+                        if (result.discovered().isEmpty()) {
+                            throw new DiscoveryFailedException(hint);
+                        }
+                    });
         } else {
             log.info("Discovered " + result.discovered().size() + " tests.");
         }

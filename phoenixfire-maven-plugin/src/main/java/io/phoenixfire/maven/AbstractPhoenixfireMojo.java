@@ -22,6 +22,7 @@ import java.net.URLClassLoader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -241,8 +242,13 @@ public abstract class AbstractPhoenixfireMojo extends AbstractMojo {
             effectiveIncludes = mergedIncludes.isEmpty() ? defaultIncludes() : mergedIncludes;
         }
 
-        List<String> mergedExcludes = new ArrayList<>(excludes);
-        mergedExcludes.addAll(readPatternFile(excludesFile));
+        // Failsafe parity: -Dtest / -Dit.test override POM excludes; negations (!) in the expression
+        // are applied post-discovery via TestSelector.
+        List<String> mergedExcludes = new ArrayList<>();
+        if (selectorGlobs.isEmpty()) {
+            mergedExcludes.addAll(excludes);
+            mergedExcludes.addAll(readPatternFile(excludesFile));
+        }
 
         List<String> jvmArgs = ArgLine.tokenize(expandLateProperties(argLine));
 
@@ -299,10 +305,12 @@ public abstract class AbstractPhoenixfireMojo extends AbstractMojo {
         } catch (DependencyResolutionRequiredException e) {
             throw new MojoExecutionException("Could not resolve test classpath: " + e.getMessage(), e);
         }
-        // Ensure the fork runner, API and JUnit Platform launcher are present in the fork.
+        // Phoenixfire modules always; junit-platform-launcher only when absent from the test classpath
+        // (project/BOM-declared launcher must win — do not ship the plugin's JUnit 6 launcher alongside it).
+        boolean testClasspathHasLauncher = LauncherClasspathPolicy.testClasspathContainsLauncher(classpath);
         if (pluginArtifacts != null) {
             for (Artifact artifact : pluginArtifacts) {
-                if (isForkClasspathPluginArtifact(artifact)) {
+                if (LauncherClasspathPolicy.shouldAppendPluginArtifact(artifact, testClasspathHasLauncher)) {
                     String path = artifact.getFile().getAbsolutePath();
                     if (!classpath.contains(path)) {
                         classpath.add(path);
@@ -311,17 +319,6 @@ public abstract class AbstractPhoenixfireMojo extends AbstractMojo {
             }
         }
         return classpath;
-    }
-
-    /** Phoenixfire modules and JUnit Platform launcher jars required in every test fork. */
-    private static boolean isForkClasspathPluginArtifact(Artifact artifact) {
-        if (artifact.getFile() == null) {
-            return false;
-        }
-        String groupId = artifact.getGroupId();
-        return "io.github.phoenixfire-labs".equals(groupId)
-                || "io.github.benmanifold".equals(groupId)
-                || "org.junit.platform".equals(groupId);
     }
 
     /** Reads include/exclude patterns from a file: one per line, blank lines and {@code #} comments ignored. */
@@ -347,9 +344,24 @@ public abstract class AbstractPhoenixfireMojo extends AbstractMojo {
         return patterns;
     }
 
-    private List<String> buildScanRoots() {
-        List<String> roots = new ArrayList<>();
-        if (project.getBuild() != null) {
+    /**
+     * Classpath roots scanned during JUnit discovery. Uses every directory on the test classpath
+     * (same coverage as Surefire/Failsafe), not only {@code target/test-classes}, so additional test
+     * source outputs (e.g. build-helper {@code integration-test} roots) are visible to discovery.
+     */
+    private List<String> buildScanRoots() throws MojoExecutionException {
+        LinkedHashSet<String> roots = new LinkedHashSet<>();
+        try {
+            for (String entry : project.getTestClasspathElements()) {
+                File path = new File(entry);
+                if (path.isDirectory()) {
+                    roots.add(path.getAbsolutePath());
+                }
+            }
+        } catch (DependencyResolutionRequiredException e) {
+            throw new MojoExecutionException("Could not resolve test classpath for scan roots: " + e.getMessage(), e);
+        }
+        if (roots.isEmpty() && project.getBuild() != null) {
             if (project.getBuild().getTestOutputDirectory() != null) {
                 roots.add(project.getBuild().getTestOutputDirectory());
             }
@@ -357,7 +369,7 @@ public abstract class AbstractPhoenixfireMojo extends AbstractMojo {
                 roots.add(project.getBuild().getOutputDirectory());
             }
         }
-        return roots;
+        return new ArrayList<>(roots);
     }
 
     private List<IsolationLevel> parseLadder() throws MojoExecutionException {

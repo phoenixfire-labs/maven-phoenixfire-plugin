@@ -13,8 +13,11 @@ separate test API and does **not** replace your test dependencies.
 | **Build stacks** | Spring Boot `spring-boot-starter-test`, plain Maven `junit-jupiter`, corporate parent BOMs | Use whatever JUnit versions the BOM pins; Phoenixfire does not force the plugin’s JUnit patch level. |
 
 **Classpath rule:** the fork uses **`project.getTestClasspathElements()` first**, then adds Phoenixfire
-and a Platform **launcher** jar if that path is not already present. Your project’s Jupiter/engine jars
-should come from the test classpath; the **launcher** should match your Platform engine version.
+modules. The plugin’s bundled **`junit-platform-launcher` is appended only when the test classpath does
+not already contain one** (detected by jar name). If your POM or BOM declares
+`junit-platform-launcher`, that version is used and the plugin’s JUnit 6 launcher is not added. Your
+project’s Jupiter/engine jars should come from the test classpath; the **launcher** should match your
+Platform engine version.
 
 **JUnit 5 projects:** a minimal `junit-jupiter` dependency alone may not put `junit-platform-launcher`
 on the test classpath (Surefire used to supply its own). Add an explicit launcher at the same line as
@@ -55,3 +58,8 @@ with older JUnit 5 consumer BOMs.
 
 If something fails only on JUnit 5.10 vs 6.0, open an issue with the consumer `junit-jupiter` version
 and a minimal repro.
+
+When launcher and engine versions do not align, discovery usually fails with a
+`NoSuchMethodError` / `AbstractMethodError` on `org.junit.platform.*` classes. Phoenixfire detects
+this pattern and logs an explicit remediation message (and fails the build when no tests were
+discovered) instead of only reporting an empty suite.

@@ -1,6 +1,7 @@
 package io.phoenixfire.core;
 
 import io.phoenixfire.api.model.TestId;
+import io.phoenixfire.core.select.SelectorMatching;
 import io.phoenixfire.core.select.TestSelector;
 import org.junit.jupiter.api.Test;
 
@@ -13,6 +14,8 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TestSelectorTest {
+
+    private static final SelectorMatching MATCHING = SelectorMatching.DEFAULT;
 
     private static TestId test(String fqcn, String method) {
         String uid = "[engine:junit-jupiter]/[class:" + fqcn + "]/[method:" + method + "()]";
@@ -102,7 +105,9 @@ class TestSelectorTest {
     @Test
     void discoveryGlobsWidenForNamedClassesOnly() {
         // Inclusions produce widening globs; pure exclusions do not (defaults stay in effect).
-        assertEquals(List.of("**/FooTest"), TestSelector.parse("FooTest").discoveryIncludeGlobs());
+        assertEquals(List.of("**/FooTest.java"), TestSelector.parse("FooTest").discoveryIncludeGlobs());
+        assertEquals(List.of("**/EnterpriseControllerIT.java"),
+                TestSelector.parse("EnterpriseControllerIT").discoveryIncludeGlobs());
         assertTrue(TestSelector.parse("!FooTest").discoveryIncludeGlobs().isEmpty());
     }
 
@@ -148,10 +153,8 @@ class TestSelectorTest {
     }
 
     @Test
-    void methodNameOfReturnsNullForPlainUniqueId() throws Exception {
-        var method = TestSelector.class.getDeclaredMethod("methodNameOf", TestId.class);
-        method.setAccessible(true);
-        assertNull(method.invoke(null, new TestId("plain-id", "com.acme.FooTest", "alpha()")));
+    void methodNameOfReturnsNullForPlainUniqueId() {
+        assertNull(MATCHING.methodNameOf(new TestId("plain-id", "com.acme.FooTest", "alpha()")));
     }
 
     @Test
@@ -178,24 +181,18 @@ class TestSelectorTest {
     }
 
     @Test
-    void methodNameOfReturnsNullForNullId() throws Exception {
-        var method = TestSelector.class.getDeclaredMethod("methodNameOf", TestId.class);
-        method.setAccessible(true);
-        assertNull(method.invoke(null, new Object[] {null}));
+    void methodNameOfReturnsNullForNullId() {
+        assertNull(MATCHING.methodNameOf(null));
     }
 
     @Test
-    void displayMethodOfReturnsNullForNullId() throws Exception {
-        var method = TestSelector.class.getDeclaredMethod("displayMethodOf", TestId.class);
-        method.setAccessible(true);
-        assertNull(method.invoke(null, new Object[] {null}));
+    void displayMethodOfReturnsNullForNullId() {
+        assertNull(MATCHING.displayMethodOf(null));
     }
 
     @Test
-    void displayMethodOfReturnsNameWithoutParentheses() throws Exception {
-        var method = TestSelector.class.getDeclaredMethod("displayMethodOf", TestId.class);
-        method.setAccessible(true);
-        assertEquals("alpha", method.invoke(null, new TestId("u", "C", "alpha")));
+    void displayMethodOfReturnsNameWithoutParentheses() {
+        assertEquals("alpha", MATCHING.displayMethodOf(new TestId("u", "C", "alpha")));
     }
 
     @Test
@@ -219,9 +216,7 @@ class TestSelectorTest {
         java.lang.reflect.Field uid = TestId.class.getDeclaredField("uniqueId");
         uid.setAccessible(true);
         uid.set(id, null);
-        var method = TestSelector.class.getDeclaredMethod("methodNameOf", TestId.class);
-        method.setAccessible(true);
-        assertNull(method.invoke(null, id));
+        assertNull(MATCHING.methodNameOf(id));
     }
 
     @Test
@@ -230,9 +225,7 @@ class TestSelectorTest {
         java.lang.reflect.Field display = TestId.class.getDeclaredField("displayName");
         display.setAccessible(true);
         display.set(id, null);
-        var method = TestSelector.class.getDeclaredMethod("displayMethodOf", TestId.class);
-        method.setAccessible(true);
-        assertNull(method.invoke(null, id));
+        assertNull(MATCHING.displayMethodOf(id));
     }
 
     @Test
@@ -252,18 +245,13 @@ class TestSelectorTest {
     }
 
     @Test
-    void globToRegexEscapesNonAlphanumericCharacters() throws Exception {
-        var method = TestSelector.class.getDeclaredMethod("globToRegex", String.class);
-        method.setAccessible(true);
-        String regex = (String) method.invoke(null, "com.acme.Foo+Test");
-        assertTrue(regex.contains("\\+"));
+    void globToRegexEscapesNonAlphanumericCharacters() {
+        assertTrue(MATCHING.globToRegex("com.acme.Foo+Test").contains("\\+"));
     }
 
     @Test
-    void simpleNameReturnsEmptyForEmptyInput() throws Exception {
-        var method = TestSelector.class.getDeclaredMethod("simpleName", String.class);
-        method.setAccessible(true);
-        assertEquals("", method.invoke(null, ""));
+    void simpleNameReturnsEmptyForEmptyInput() {
+        assertEquals("", MATCHING.simpleName(""));
     }
 
     @Test

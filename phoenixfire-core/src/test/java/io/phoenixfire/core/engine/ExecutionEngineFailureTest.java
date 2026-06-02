@@ -5,6 +5,8 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -17,7 +19,18 @@ class ExecutionEngineFailureTest {
     @TempDir
     Path tempDir;
 
+    @BeforeEach
+    @SuppressWarnings("unused")
+    void enableSimulatedFork() {
+        System.setProperty("phoenixfire.fork.main", SimulatedFork.class.getName());
+    }
 
+    @AfterEach
+    @SuppressWarnings("unused")
+    void clearProps() {
+        System.clearProperty("phoenixfire.fork.main");
+        System.clearProperty(SimulatedFork.PROP_MODE);
+    }
 
     @Test
     void recordsFailedTests() throws Exception {

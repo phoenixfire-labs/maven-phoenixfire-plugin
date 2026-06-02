@@ -32,6 +32,11 @@ public final class TestSelector {
     }
 
     public static TestSelector parse(String expression) {
+        return parse(expression, SelectorMatching.DEFAULT);
+    }
+
+    /** Parse with a custom matching implementation (tests, future DI). */
+    public static TestSelector parse(String expression, SelectorMatching matching) {
         List<Entry> includes = new ArrayList<>();
         List<Entry> excludes = new ArrayList<>();
         if (expression != null && !expression.isBlank()) {
@@ -44,7 +49,7 @@ public final class TestSelector {
                 if (token.isEmpty()) {
                     continue;
                 }
-                (negate ? excludes : includes).add(Entry.of(token));
+                (negate ? excludes : includes).add(Entry.of(token, matching));
             }
         }
         return new TestSelector(includes, excludes);
@@ -54,11 +59,18 @@ public final class TestSelector {
         return includes.isEmpty() && excludes.isEmpty();
     }
 
-    /** Class-level globs for the inclusion entries, so discovery is permissive enough to find them. */
+    /**
+     * Class-level globs for the inclusion entries, so discovery is permissive enough to find them.
+     * Uses Failsafe-style {@code **}{@code /ClassName.java} include globs so a class in any package is scanned.
+     */
     public List<String> discoveryIncludeGlobs() {
         List<String> globs = new ArrayList<>();
         for (Entry e : includes) {
-            globs.add("**/" + e.classGlob);
+            String glob = e.classGlob;
+            if (!glob.endsWith(".java") && !glob.endsWith(".class")) {
+                glob = glob + ".java";
+            }
+            globs.add("**/" + glob);
         }
         return globs;
     }
@@ -92,14 +104,17 @@ public final class TestSelector {
         final String classGlob;
         final Pattern classPattern;
         final List<Pattern> methodPatterns;
+        final SelectorMatching matching;
 
-        private Entry(String classGlob, Pattern classPattern, List<Pattern> methodPatterns) {
+        private Entry(String classGlob, Pattern classPattern, List<Pattern> methodPatterns,
+                      SelectorMatching matching) {
             this.classGlob = classGlob;
             this.classPattern = classPattern;
             this.methodPatterns = methodPatterns;
+            this.matching = matching;
         }
 
-        static Entry of(String token) {
+        static Entry of(String token, SelectorMatching matching) {
             String classPart = token;
             String methodPart = null;
             int hash = token.indexOf('#');
@@ -107,7 +122,7 @@ public final class TestSelector {
                 classPart = token.substring(0, hash).trim();
                 methodPart = token.substring(hash + 1).trim();
             }
-            classPart = stripSuffix(classPart).replace('/', '.');
+            classPart = matching.stripClassSuffix(classPart).replace('/', '.');
             if (classPart.isEmpty()) {
                 classPart = "*";
             }
@@ -116,11 +131,11 @@ public final class TestSelector {
                 for (String m : methodPart.split("\\+")) {
                     String trimmed = m.trim();
                     if (!trimmed.isEmpty()) {
-                        methodPatterns.add(Pattern.compile(globToRegex(trimmed)));
+                        methodPatterns.add(matching.compileGlob(trimmed));
                     }
                 }
             }
-            return new Entry(classPart, Pattern.compile(globToRegex(classPart)), methodPatterns);
+            return new Entry(classPart, matching.compileGlob(classPart), methodPatterns, matching);
         }
 
         boolean matches(TestId id) {
@@ -130,8 +145,8 @@ public final class TestSelector {
             if (methodPatterns.isEmpty()) {
                 return true;
             }
-            String method = methodNameOf(id);
-            String display = displayMethodOf(id);
+            String method = matching.methodNameOf(id);
+            String display = matching.displayMethodOf(id);
             for (Pattern p : methodPatterns) {
                 if ((method != null && p.matcher(method).matches())
                         || (display != null && p.matcher(display).matches())) {
@@ -146,89 +161,8 @@ public final class TestSelector {
             if (fqcn != null && !fqcn.isEmpty() && classPattern.matcher(fqcn).matches()) {
                 return true;
             }
-            String simple = simpleName(fqcn);
+            String simple = matching.simpleName(fqcn);
             return simple != null && classPattern.matcher(simple).matches();
         }
-    }
-
-    private static String simpleName(String fqcn) {
-        if (fqcn == null || fqcn.isEmpty()) {
-            return fqcn;
-        }
-        int dot = fqcn.lastIndexOf('.');
-        return dot >= 0 ? fqcn.substring(dot + 1) : fqcn;
-    }
-
-    private static String stripSuffix(String s) {
-        if (s.endsWith(".java")) {
-            return s.substring(0, s.length() - ".java".length());
-        }
-        if (s.endsWith(".class")) {
-            return s.substring(0, s.length() - ".class".length());
-        }
-        return s;
-    }
-
-    /** Extract the method name from a JUnit Platform unique id, e.g. {@code [method:bar()]} -> {@code bar}. */
-    static String methodNameOf(TestId id) {
-        if (id == null) {
-            return null;
-        }
-        String uid = id.uniqueId();
-        if (uid == null) {
-            return null;
-        }
-        String[] keys = {"[method:", "[test-template:", "[test-factory:", "[test-template-invocation:"};
-        int best = -1;
-        int keyLen = 0;
-        for (String k : keys) {
-            int idx = uid.lastIndexOf(k);
-            if (idx > best) {
-                best = idx;
-                keyLen = k.length();
-            }
-        }
-        if (best < 0) {
-            return null;
-        }
-        int start = best + keyLen;
-        int end = uid.indexOf(']', start);
-        String segment = end < 0 ? uid.substring(start) : uid.substring(start, end);
-        int paren = segment.indexOf('(');
-        return paren >= 0 ? segment.substring(0, paren) : segment;
-    }
-
-    private static String displayMethodOf(TestId id) {
-        if (id == null) {
-            return null;
-        }
-        String dn = id.displayName();
-        if (dn == null) {
-            return null;
-        }
-        int paren = dn.indexOf('(');
-        return paren >= 0 ? dn.substring(0, paren) : dn;
-    }
-
-    static String globToRegex(String glob) {
-        StringBuilder re = new StringBuilder();
-        for (int i = 0; i < glob.length(); i++) {
-            char c = glob.charAt(i);
-            switch (c) {
-                case '*':
-                    re.append(".*");
-                    break;
-                case '?':
-                    re.append('.');
-                    break;
-                default:
-                    if (Character.isLetterOrDigit(c) || c == '_') {
-                        re.append(c);
-                    } else {
-                        re.append('\\').append(c);
-                    }
-            }
-        }
-        return re.toString();
     }
 }

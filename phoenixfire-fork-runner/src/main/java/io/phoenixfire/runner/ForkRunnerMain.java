@@ -1,16 +1,5 @@
 package io.phoenixfire.runner;
 
-import io.phoenixfire.api.ipc.IpcProtocol;
-
-import org.junit.platform.engine.discovery.ClassNameFilter;
-import org.junit.platform.engine.discovery.DiscoverySelectors;
-import org.junit.platform.launcher.Launcher;
-import org.junit.platform.launcher.LauncherDiscoveryRequest;
-import org.junit.platform.launcher.TestIdentifier;
-import org.junit.platform.launcher.TestPlan;
-import org.junit.platform.launcher.core.LauncherDiscoveryRequestBuilder;
-import org.junit.platform.launcher.core.LauncherFactory;
-
 import java.io.File;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -21,6 +10,18 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.IntConsumer;
+
+import org.junit.platform.engine.discovery.ClassNameFilter;
+import org.junit.platform.engine.discovery.DiscoverySelectors;
+import org.junit.platform.launcher.Launcher;
+import org.junit.platform.launcher.LauncherDiscoveryRequest;
+import org.junit.platform.launcher.TestIdentifier;
+import org.junit.platform.launcher.TestPlan;
+import org.junit.platform.launcher.core.LauncherDiscoveryRequestBuilder;
+import org.junit.platform.launcher.core.LauncherFactory;
+
+import io.phoenixfire.api.ipc.IpcProtocol;
+import io.phoenixfire.api.junit.LauncherCompatibilityDiagnostics;
 
 /**
  * Entry point executed inside every forked JVM.
@@ -116,13 +117,21 @@ public final class ForkRunnerMain {
     }
 
     private static void reportUncaught(Throwable t) {
+        if (LauncherCompatibilityDiagnostics.isLikelyLauncherIncompatibility(t)) {
+            LauncherCompatibilityDiagnostics.printForkGuidance(t, System.err, launcherImplementationVersion());
+            return;
+        }
         String summary = t.getClass().getSimpleName()
                 + (t.getMessage() != null && !t.getMessage().isEmpty() ? ": " + t.getMessage() : "");
         System.err.println("[phoenixfire-fork] uncaught " + summary);
         t.printStackTrace(System.err);
     }
 
-    @SuppressWarnings("unchecked")
+    private static String launcherImplementationVersion() {
+        Package pkg = Launcher.class.getPackage();
+        return pkg != null ? pkg.getImplementationVersion() : null;
+    }
+
     private static void runDiscovery(ForkIpcClient client, Map<String, Object> command) throws Exception {
         List<String> includes = asStringList(command.get(IpcProtocol.FIELD_INCLUDES));
         List<String> excludes = asStringList(command.get(IpcProtocol.FIELD_EXCLUDES));
@@ -135,11 +144,11 @@ public final class ForkRunnerMain {
         if (includeRegexes.isEmpty()) {
             includeRegexes = List.of(".*");
         }
-        builder.filters(ClassNameFilter.includeClassNamePatterns(includeRegexes.toArray(new String[0])));
+        builder.filters(ClassNameFilter.includeClassNamePatterns(includeRegexes.toArray(String[]::new)));
 
         List<String> excludeRegexes = ClassNamePatterns.toRegexes(excludes);
         if (!excludeRegexes.isEmpty()) {
-            builder.filters(ClassNameFilter.excludeClassNamePatterns(excludeRegexes.toArray(new String[0])));
+            builder.filters(ClassNameFilter.excludeClassNamePatterns(excludeRegexes.toArray(String[]::new)));
         }
 
         LauncherDiscoveryRequest request = builder.build();

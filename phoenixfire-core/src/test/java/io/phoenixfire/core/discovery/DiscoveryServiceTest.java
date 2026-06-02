@@ -17,6 +17,8 @@ import java.nio.file.Path;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class DiscoveryServiceTest {
 
@@ -53,6 +55,22 @@ class DiscoveryServiceTest {
                 new DefaultFailureClassifier(), PhoenixfireLogger.console(), tempDir.resolve("forks"));
         DiscoveryService service = new DiscoveryService(supervisor, PhoenixfireLogger.console());
         assertEquals(2, service.discover().size());
+    }
+
+    @Test
+    void failsFastOnLauncherMismatchWithNoTestsDiscovered() throws Exception {
+        PhoenixfireConfiguration config = PhoenixfireConfiguration.builder()
+                .classpath(List.of())
+                .reportsDirectory(tempDir.toFile())
+                .build();
+        int port = ipcServerPort();
+        ForkSupervisor supervisor = new ForkSupervisor(config, ipcServer,
+                new SimulatedForkLauncher(config, port, SimulatedFork.MODE_DISCOVER_LAUNCHER_MISMATCH),
+                new ExecutionJournal(PhoenixfireLogger.console()),
+                new DefaultFailureClassifier(), PhoenixfireLogger.console(), tempDir.resolve("forks"));
+        DiscoveryService service = new DiscoveryService(supervisor, PhoenixfireLogger.console());
+        DiscoveryFailedException ex = assertThrows(DiscoveryFailedException.class, service::discover);
+        assertTrue(ex.getMessage().contains("junit-platform-launcher"));
     }
 
     @Test

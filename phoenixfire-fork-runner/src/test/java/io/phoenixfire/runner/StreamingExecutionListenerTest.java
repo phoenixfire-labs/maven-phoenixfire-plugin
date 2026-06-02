@@ -1,5 +1,12 @@
 package io.phoenixfire.runner;
 
+import java.net.ServerSocket;
+import java.net.Socket;
+
+import org.jspecify.annotations.NonNull;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 import org.junit.platform.engine.TestExecutionResult;
 import org.junit.platform.engine.discovery.DiscoverySelectors;
@@ -9,13 +16,6 @@ import org.junit.platform.launcher.TestIdentifier;
 import org.junit.platform.launcher.TestPlan;
 import org.junit.platform.launcher.core.LauncherDiscoveryRequestBuilder;
 import org.junit.platform.launcher.core.LauncherFactory;
-
-import java.net.ServerSocket;
-import java.net.Socket;
-
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class StreamingExecutionListenerTest {
 
@@ -56,13 +56,14 @@ class StreamingExecutionListenerTest {
         assertTrue(methodTest.getSource().orElse(null) instanceof MethodSource);
     }
 
+    @SuppressWarnings("null")
     @Test
     void classNameFromClassSource() {
         TestPlan plan = LauncherFactory.create().discover(LauncherDiscoveryRequestBuilder.request()
                 .selectors(DiscoverySelectors.selectClass(StreamingExecutionListenerTest.class))
                 .build());
         TestIdentifier classId = null;
-        for (TestIdentifier root : plan.getRoots()) {
+        for (@NonNull TestIdentifier root : plan.getRoots()) {
             for (TestIdentifier child : plan.getChildren(root)) {
                 if (child.getSource().isPresent()
                         && child.getSource().get() instanceof ClassSource) {
@@ -80,7 +81,8 @@ class StreamingExecutionListenerTest {
         TestPlan plan = LauncherFactory.create().discover(LauncherDiscoveryRequestBuilder.request()
                 .selectors(DiscoverySelectors.selectClass(StreamingExecutionListenerTest.class))
                 .build());
-        TestIdentifier container = plan.getRoots().iterator().next();
+        @SuppressWarnings("null")
+        @NonNull TestIdentifier container = plan.getRoots().iterator().next();
 
         try (ServerSocket server = new ServerSocket(0)) {
             int port = server.getLocalPort();
@@ -99,6 +101,7 @@ class StreamingExecutionListenerTest {
         }
     }
 
+    @SuppressWarnings("null")
     @Test
     void sendQuietlySwallowsIoFailure() throws Exception {
         TestIdentifier testId = discoverSelfTest();
@@ -121,6 +124,7 @@ class StreamingExecutionListenerTest {
         }
     }
 
+    @SuppressWarnings("null")
     @Test
     void finishedWithoutStartOmitsDuration() throws Exception {
         TestIdentifier testId = discoverSelfTest();
@@ -137,6 +141,7 @@ class StreamingExecutionListenerTest {
         }
     }
 
+    @SuppressWarnings("null")
     @Test
     void streamsLifecycleEvents() throws Exception {
         TestIdentifier testId = discoverSelfTest();
