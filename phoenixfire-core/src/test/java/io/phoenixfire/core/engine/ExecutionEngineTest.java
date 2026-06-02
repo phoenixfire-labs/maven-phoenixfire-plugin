@@ -1,6 +1,5 @@
 package io.phoenixfire.core.engine;
 
-import io.phoenixfire.api.model.TestState;
 import io.phoenixfire.core.config.PhoenixfireConfiguration;
 import io.phoenixfire.core.testsupport.SimulatedFork;
 import io.phoenixfire.core.util.PhoenixfireLogger;
@@ -9,7 +8,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import java.io.File;
 import java.nio.file.Path;
 import java.util.List;
 
@@ -23,12 +21,14 @@ class ExecutionEngineTest {
     Path tempDir;
 
     @BeforeEach
+    @SuppressWarnings("unused") // invoked by JUnit, not by direct calls
     void enableSimulatedFork() {
         System.setProperty("phoenixfire.fork.main", SimulatedFork.class.getName());
         System.setProperty(SimulatedFork.PROP_MODE, SimulatedFork.MODE_DISCOVER);
     }
 
     @AfterEach
+    @SuppressWarnings("unused") // invoked by JUnit, not by direct calls
     void clearProps() {
         System.clearProperty("phoenixfire.fork.main");
         System.clearProperty(SimulatedFork.PROP_MODE);
@@ -72,7 +72,6 @@ class ExecutionEngineTest {
     }
 
     private static List<String> simulatedForkClasspath() {
-        String sep = File.pathSeparator;
         return List.of(
                 Path.of("target", "test-classes").toAbsolutePath().toString(),
                 Path.of("target", "classes").toAbsolutePath().toString(),

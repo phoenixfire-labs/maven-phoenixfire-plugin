@@ -51,10 +51,6 @@ class StreamingExecutionListenerTest {
 
     @Test
     void classNameFromMethodSource() {
-        var request = LauncherDiscoveryRequestBuilder.request()
-                .selectors(DiscoverySelectors.selectMethod(getClass(), "sampleTestForDiscovery"))
-                .build();
-        TestPlan plan = LauncherFactory.create().discover(request);
         TestIdentifier methodTest = discoverSelfTest();
         assertEquals(getClass().getName(), StreamingExecutionListener.classNameOf(methodTest));
         assertTrue(methodTest.getSource().orElse(null) instanceof MethodSource);

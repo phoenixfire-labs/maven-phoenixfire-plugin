@@ -29,6 +29,7 @@ class IpcServerTest {
     private IpcServer server;
 
     @AfterEach
+    @SuppressWarnings("unused") // invoked by JUnit, not by direct calls
     void tearDown() {
         if (server != null) {
             server.close();

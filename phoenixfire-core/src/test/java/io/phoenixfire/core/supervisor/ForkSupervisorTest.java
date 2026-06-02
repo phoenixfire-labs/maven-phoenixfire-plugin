@@ -35,6 +35,7 @@ class ForkSupervisorTest {
     private ForkSupervisor supervisor;
 
     @BeforeEach
+    @SuppressWarnings("unused") // invoked by JUnit, not by direct calls
     void setUp() throws Exception {
         PhoenixfireConfiguration config = PhoenixfireConfiguration.builder()
                 .classpath(List.of())
@@ -49,6 +50,7 @@ class ForkSupervisorTest {
     }
 
     @AfterEach
+    @SuppressWarnings("unused") // invoked by JUnit, not by direct calls
     void tearDown() {
         if (ipcServer != null) {
             ipcServer.close();

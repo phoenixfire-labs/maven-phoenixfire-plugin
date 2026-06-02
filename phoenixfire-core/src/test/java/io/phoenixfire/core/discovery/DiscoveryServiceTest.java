@@ -26,12 +26,14 @@ class DiscoveryServiceTest {
     private IpcServer ipcServer;
 
     @BeforeEach
+    @SuppressWarnings("unused") // invoked by JUnit, not by direct calls
     void setUp() throws Exception {
         ipcServer = new IpcServer(PhoenixfireLogger.console());
         ipcServer.start();
     }
 
     @AfterEach
+    @SuppressWarnings("unused") // invoked by JUnit, not by direct calls
     void tearDown() {
         if (ipcServer != null) {
             ipcServer.close();

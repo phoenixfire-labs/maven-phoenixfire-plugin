@@ -4,7 +4,6 @@ import io.phoenixfire.api.spi.ForkConfig;
 import io.phoenixfire.core.config.PhoenixfireConfiguration;
 import io.phoenixfire.core.supervisor.ForkLauncher;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;

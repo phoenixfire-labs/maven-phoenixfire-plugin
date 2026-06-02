@@ -1,6 +1,5 @@
 package io.phoenixfire.core.testsupport.spi;
 
-import io.phoenixfire.api.model.IsolationLevel;
 import io.phoenixfire.api.model.TestRecord;
 import io.phoenixfire.api.spi.FailureContext;
 import io.phoenixfire.api.spi.RetryDecision;

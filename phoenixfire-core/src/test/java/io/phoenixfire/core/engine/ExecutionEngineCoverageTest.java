@@ -1,13 +1,10 @@
 package io.phoenixfire.core.engine;
 
 import io.phoenixfire.api.json.Json;
-import io.phoenixfire.api.model.TestState;
-import io.phoenixfire.api.model.TestId;
 import io.phoenixfire.api.spi.IsolationStrategy;
 import io.phoenixfire.api.spi.RetryPolicy;
 import io.phoenixfire.core.config.PhoenixfireConfiguration;
 import io.phoenixfire.core.testsupport.SimulatedFork;
-import io.phoenixfire.core.testsupport.SimulatedForkLauncher;
 import io.phoenixfire.core.testsupport.SpiTestClassLoader;
 import io.phoenixfire.core.testsupport.spi.BackoffRetryPolicy;
 import io.phoenixfire.core.testsupport.spi.DeclineRetryPolicy;
@@ -18,7 +15,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -36,11 +32,13 @@ class ExecutionEngineCoverageTest {
     Path tempDir;
 
     @BeforeEach
+    @SuppressWarnings("unused") // invoked by JUnit, not by direct calls
     void enableSimulatedFork() {
         System.setProperty("phoenixfire.fork.main", SimulatedFork.class.getName());
     }
 
     @AfterEach
+    @SuppressWarnings("unused") // invoked by JUnit, not by direct calls
     void clearProps() {
         System.clearProperty("phoenixfire.fork.main");
         System.clearProperty(SimulatedFork.PROP_MODE);
